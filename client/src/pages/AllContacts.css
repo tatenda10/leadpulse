@@ -1,0 +1,239 @@
+.all-contacts-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.all-contacts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.all-contacts-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1) 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.all-contacts-title svg {
+  color: var(--text-accent);
+}
+
+.all-contacts-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.all-contacts-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: var(--space-3);
+  min-height: 400px;
+}
+
+.all-contacts-list {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.all-contacts-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--main-bg);
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.all-contacts-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-family: var(--font-family);
+}
+
+.all-contacts-search input::placeholder {
+  color: var(--text-light);
+}
+
+.all-contacts-search svg {
+  color: var(--text-light);
+}
+
+.all-contacts-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.all-contacts-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contact-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--space-1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.contact-row:hover {
+  background: var(--main-bg);
+}
+
+.contact-row.active {
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.contact-row-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.contact-row-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.contact-row-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.contact-row-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.all-contacts-detail {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.contact-detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.contact-detail-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--text-accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.contact-detail-name {
+  margin: 0 0 var(--space-1) 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.contact-detail-status {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.contact-detail-status.hot {
+  color: #ef4444;
+}
+
+.contact-detail-status.warm {
+  color: #f59e0b;
+}
+
+.contact-detail-status.cold {
+  color: var(--text-secondary);
+}
+
+.contact-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contact-detail-field {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.field-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.contact-detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.contact-detail-empty svg {
+  opacity: 0.4;
+}
+
+@media (max-width: 768px) {
+  .all-contacts-layout {
+    grid-template-columns: 1fr;
+  }
+}

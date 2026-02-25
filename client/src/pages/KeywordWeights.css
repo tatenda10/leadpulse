@@ -1,0 +1,228 @@
+.keyword-weights-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.keyword-weights-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.keyword-weights-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1) 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.keyword-weights-title svg {
+  color: var(--text-accent);
+}
+
+.keyword-weights-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.keyword-weights-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-weights-add-btn:hover {
+  background: #6d28d9;
+}
+
+.keyword-weights-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keyword-weight-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.keyword-weight-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.keyword-weight-preview {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.keyword-weight-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-accent);
+}
+
+.keyword-weight-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.keyword-weight-new-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.keyword-weight-card .icon-btn {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--space-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.keyword-weight-card .icon-btn:hover {
+  background: var(--main-bg);
+  color: var(--text-primary);
+}
+
+.keyword-weight-card .icon-btn.danger:hover {
+  color: #ef4444;
+}
+
+.keyword-weight-card-body {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keyword-weight-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.keyword-weight-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.keyword-weight-field input {
+  max-width: 200px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-family);
+  border: 1px solid var(--border-color);
+  border-radius: var(--space-1);
+}
+
+.keyword-weight-footer {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.keyword-weight-card .btn-primary {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-weight-card .btn-primary:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.keyword-weight-card .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.keyword-weight-card .btn-secondary {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.keyword-weight-card .btn-secondary:hover {
+  background: var(--main-bg);
+}
+
+.keyword-weights-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px dashed var(--border-color);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.keyword-weights-empty .empty-icon {
+  opacity: 0.4;
+}
+
+.keyword-weights-empty .empty-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.keyword-weights-empty .empty-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-weights-empty .empty-add-btn:hover {
+  background: #6d28d9;
+}

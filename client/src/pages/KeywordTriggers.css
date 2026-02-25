@@ -1,0 +1,291 @@
+.keyword-triggers-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.keyword-triggers-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.keyword-triggers-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1) 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.keyword-triggers-title svg {
+  color: var(--text-accent);
+}
+
+.keyword-triggers-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.keyword-triggers-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-triggers-add-btn:hover {
+  background: #6d28d9;
+}
+
+.keyword-triggers-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keyword-trigger-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.keyword-trigger-card.disabled {
+  opacity: 0.7;
+}
+
+.keyword-trigger-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.keyword-trigger-toggle {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.keyword-trigger-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.keyword-trigger-toggle .toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--border-color);
+  border-radius: 24px;
+  transition: 0.2s;
+}
+
+.keyword-trigger-toggle .toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.keyword-trigger-toggle input:checked + .toggle-slider {
+  background: var(--text-accent);
+}
+
+.keyword-trigger-toggle input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.keyword-trigger-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.keyword-trigger-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.keyword-trigger-card .icon-btn {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--space-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.keyword-trigger-card .icon-btn:hover {
+  background: var(--main-bg);
+  color: var(--text-primary);
+}
+
+.keyword-trigger-card .icon-btn.danger:hover {
+  color: #ef4444;
+}
+
+.keyword-trigger-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keyword-trigger-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.keyword-trigger-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.keyword-trigger-field input,
+.keyword-trigger-field select,
+.keyword-trigger-field textarea {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-family);
+  border: 1px solid var(--border-color);
+  border-radius: var(--space-1);
+}
+
+.keyword-trigger-field textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.keyword-trigger-card-footer {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.keyword-trigger-card .btn-primary {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-trigger-card .btn-primary:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.keyword-trigger-card .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.keyword-trigger-card .btn-secondary {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.keyword-trigger-card .btn-secondary:hover {
+  background: var(--main-bg);
+}
+
+.keyword-trigger-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.keyword-trigger-preview .preview-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.keyword-trigger-preview .preview-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.keyword-triggers-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px dashed var(--border-color);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.keyword-triggers-empty .empty-icon {
+  opacity: 0.4;
+}
+
+.keyword-triggers-empty .empty-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.keyword-triggers-empty .empty-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.keyword-triggers-empty .empty-add-btn:hover {
+  background: #6d28d9;
+}

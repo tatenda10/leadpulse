@@ -1,0 +1,91 @@
+.performance-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.performance-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-2);
+}
+
+.perf-card {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.perf-card-icon {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perf-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.perf-card-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.perf-card-change {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: var(--space-2);
+}
+
+.perf-card-change.up {
+  color: #22c55e;
+}
+
+.perf-card-change.down {
+  color: #22c55e;
+}
+
+.performance-charts {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-2);
+}
+
+.performance-charts .chart-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.performance-charts .chart-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.chart-card.chart-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .performance-charts {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card.chart-full {
+    grid-column: 1;
+  }
+}

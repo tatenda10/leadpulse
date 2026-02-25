@@ -1,0 +1,337 @@
+.contact-segments-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.contact-segments-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.contact-segments-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1) 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.contact-segments-title svg {
+  color: var(--text-accent);
+}
+
+.contact-segments-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.contact-segments-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.contact-segments-add-btn:hover {
+  background: #6d28d9;
+}
+
+.contact-segments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2);
+}
+
+.segment-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.segment-name {
+  margin: 0 0 var(--space-1) 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.segment-desc {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.segment-criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-2);
+}
+
+.criteria-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.criteria-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.segment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-color);
+}
+
+.segment-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.segment-view-btn {
+  padding: var(--space-1) var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: 1px solid var(--text-accent);
+  background: transparent;
+  color: var(--text-accent);
+  cursor: pointer;
+}
+
+.segment-view-btn:hover {
+  background: rgba(124, 58, 237, 0.08);
+}
+
+/* Toast (top right) */
+.segment-toast {
+  position: fixed;
+  top: var(--space-3);
+  right: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10002;
+  animation: segment-toast-in 0.25s ease;
+}
+
+.segment-toast-success {
+  background: #dcfce7;
+  border: 1px solid #22c55e;
+  color: #166534;
+}
+
+.segment-toast-error {
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+}
+
+@keyframes segment-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Create Segment Modal */
+.segment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(2, 6, 23, 0.65);
+  z-index: 9999;
+}
+
+.segment-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - var(--space-4)));
+  max-height: calc(100vh - var(--space-4));
+  background: var(--card-bg);
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.segment-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.segment-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.segment-modal-close {
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  border-radius: var(--space-1);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.segment-modal-close:hover {
+  background: var(--main-bg);
+  color: var(--text-primary);
+}
+
+.segment-modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-3);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.segment-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.segment-modal-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.segment-field-required {
+  color: #ef4444;
+}
+
+.segment-modal-field input,
+.segment-modal-field select,
+.segment-modal-field textarea {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-family);
+  border: 1px solid var(--border-color);
+  border-radius: var(--space-1);
+}
+
+/* Emphasize key field text */
+#segment-name,
+#segment-desc,
+#segment-criteria-type,
+#segment-criteria-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.segment-modal-field input:focus,
+.segment-modal-field select:focus,
+.segment-modal-field textarea:focus {
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+  outline: none;
+}
+
+.segment-modal-field textarea {
+  resize: vertical;
+}
+
+.segment-detail-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.segment-detail-muted {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-light);
+}
+
+.segment-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-color);
+  background: #f8fafc;
+}
+
+.segment-modal-btn {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  cursor: pointer;
+}
+
+.segment-modal-btn-secondary {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.segment-modal-btn-secondary:hover {
+  background: var(--main-bg);
+}
+
+.segment-modal-btn-primary {
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+}
+
+.segment-modal-btn-primary:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.segment-modal-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

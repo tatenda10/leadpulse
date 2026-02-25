@@ -1,0 +1,47 @@
+/* Unread page accent: amber/inbox */
+.unread-chats .chat-item.active {
+  background: rgba(245, 158, 11, 0.08);
+  border-left-color: #f59e0b;
+}
+
+.unread-chats .chat-item-avatar {
+  background: #f59e0b;
+}
+
+.unread-chats .chat-window-avatar {
+  background: #f59e0b;
+}
+
+.unread-chats .takeover-btn {
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.unread-chats .chat-send-btn {
+  background: #f59e0b;
+}
+
+.unread-chats .chat-message.bot .chat-bubble {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.unread-empty-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.unread-empty-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}

@@ -1,0 +1,237 @@
+.hot-lead-threshold-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.hot-lead-threshold-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.hot-lead-threshold-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1) 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.hot-lead-threshold-title svg {
+  color: var(--text-accent);
+}
+
+.hot-lead-threshold-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.hot-lead-threshold-content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.threshold-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.threshold-visual {
+  margin-bottom: var(--space-4);
+}
+
+.threshold-bar {
+  position: relative;
+  height: 24px;
+  background: var(--main-bg);
+  border-radius: var(--space-1);
+  overflow: hidden;
+}
+
+.threshold-segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+}
+
+.threshold-segment.cold {
+  background: #94a3b8;
+  left: 0;
+}
+
+.threshold-segment.warm {
+  background: #f59e0b;
+}
+
+.threshold-segment.hot {
+  background: #ef4444;
+}
+
+.threshold-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.threshold-labels .warm-label {
+  color: #f59e0b;
+}
+
+.threshold-labels .hot-label {
+  color: #ef4444;
+}
+
+.threshold-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.threshold-field label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.threshold-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.threshold-dot.warm {
+  background: #f59e0b;
+}
+
+.threshold-dot.hot {
+  background: #ef4444;
+}
+
+.threshold-field input {
+  width: 100%;
+  max-width: 120px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-family: var(--font-family);
+  border: 1px solid var(--border-color);
+  border-radius: var(--space-1);
+}
+
+.field-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-light);
+}
+
+.threshold-save-btn {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.threshold-save-btn:hover:not(:disabled) {
+  background: #6d28d9;
+}
+
+.threshold-save-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.threshold-preview-card {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.preview-title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.preview-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.preview-tier {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--space-1);
+  font-size: 13px;
+}
+
+.preview-tier.cold {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.preview-tier.warm {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.preview-tier.hot {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.preview-tier .tier-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 48px;
+}
+
+.preview-tier .tier-range {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.preview-hint {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .hot-lead-threshold-content {
+    grid-template-columns: 1fr;
+  }
+}
