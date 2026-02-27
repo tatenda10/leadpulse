@@ -1,43 +1,59 @@
-import React from 'react'
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts'
+import React, { useEffect, useMemo, useState } from 'react'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { HiOutlineChip } from 'react-icons/hi'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 import './Analytics.css'
 
-const BOT_KPIS = [
-  { label: 'Bot resolution rate', value: '72%', change: '+6%', icon: HiOutlineChip, color: '#6366f1' },
-  { label: 'Avg response time', value: '1.2s', change: '-8%', icon: HiOutlineChip, color: '#22c55e' },
-  { label: 'Handled today', value: '312', change: '+12%', icon: HiOutlineChip, color: '#7c3aed' },
-  { label: 'Fallback rate', value: '12%', change: '-2%', icon: HiOutlineChip, color: '#f59e0b' },
-]
-
-const BOT_BY_DAY = [
-  { day: 'Mon', resolved: 142, escalated: 38 },
-  { day: 'Tue', resolved: 168, escalated: 42 },
-  { day: 'Wed', resolved: 155, escalated: 35 },
-  { day: 'Thu', resolved: 189, escalated: 48 },
-  { day: 'Fri', resolved: 172, escalated: 45 },
-]
-
-const RESPONSE_TIME = [
-  { day: 'Mon', bot: 1.4 },
-  { day: 'Tue', bot: 1.2 },
-  { day: 'Wed', bot: 1.3 },
-  { day: 'Thu', bot: 1.1 },
-  { day: 'Fri', bot: 1.2 },
-]
+type Response = {
+  kpis: {
+    botResolutionRate: { value: number; change: string }
+    avgResponseSeconds: { value: number; change: string }
+    handledToday: { value: number; change: string }
+    fallbackRate: { value: number; change: string }
+  }
+  botByDay: Array<{ day: string; resolved: number; escalated: number }>
+  responseTime: Array<{ day: string; bot: number }>
+}
 
 export const BotPerformance: React.FC = () => {
+  const { token } = useAuth()
+  const [data, setData] = useState<Response | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<Response>('/analytics/bot-performance', { token })
+        if (!cancelled) setData(response)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load bot performance')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void run()
+    return () => { cancelled = true }
+  }, [token])
+
+  const kpis = useMemo(() => {
+    if (!data) return []
+    return [
+      { label: 'Bot resolution rate', value: `${data.kpis.botResolutionRate.value.toFixed(1)}%`, change: data.kpis.botResolutionRate.change, icon: HiOutlineChip, color: '#6366f1' },
+      { label: 'Avg response time', value: `${data.kpis.avgResponseSeconds.value.toFixed(2)}s`, change: data.kpis.avgResponseSeconds.change, icon: HiOutlineChip, color: '#22c55e' },
+      { label: 'Handled today', value: data.kpis.handledToday.value.toLocaleString(), change: data.kpis.handledToday.change, icon: HiOutlineChip, color: '#7c3aed' },
+      { label: 'Fallback rate', value: `${data.kpis.fallbackRate.value.toFixed(2)}%`, change: data.kpis.fallbackRate.change, icon: HiOutlineChip, color: '#f59e0b' },
+    ]
+  }, [data])
+
+  if (loading) return <div className="analytics-page"><div className="analytics-chart-card">Loading...</div></div>
+  if (error || !data) return <div className="analytics-page"><div className="analytics-chart-card">{error || 'No data'}</div></div>
+
   return (
     <div className="analytics-page">
       <header className="analytics-header">
@@ -45,13 +61,11 @@ export const BotPerformance: React.FC = () => {
         <p className="analytics-desc">Track chatbot resolution, response time, and escalation.</p>
       </header>
       <div className="analytics-kpis">
-        {BOT_KPIS.map((kpi) => {
+        {kpis.map((kpi) => {
           const Icon = kpi.icon
           return (
             <div key={kpi.label} className="analytics-kpi-card">
-              <div className="analytics-kpi-icon" style={{ color: kpi.color }}>
-                <Icon size={22} />
-              </div>
+              <div className="analytics-kpi-icon" style={{ color: kpi.color }}><Icon size={22} /></div>
               <div className="analytics-kpi-label">{kpi.label}</div>
               <div className="analytics-kpi-value">{kpi.value}</div>
               <div className="analytics-kpi-change">{kpi.change} vs last week</div>
@@ -63,7 +77,7 @@ export const BotPerformance: React.FC = () => {
         <div className="analytics-chart-card chart-wide">
           <div className="analytics-chart-title">Resolved vs Escalated (daily)</div>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={BOT_BY_DAY}>
+            <BarChart data={data.botByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
@@ -77,7 +91,7 @@ export const BotPerformance: React.FC = () => {
         <div className="analytics-chart-card">
           <div className="analytics-chart-title">Avg bot response time (sec)</div>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={RESPONSE_TIME}>
+            <LineChart data={data.responseTime}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
@@ -90,3 +104,4 @@ export const BotPerformance: React.FC = () => {
     </div>
   )
 }
+

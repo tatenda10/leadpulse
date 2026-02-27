@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -17,69 +17,75 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { HiOutlineChat, HiOutlineFire, HiOutlineChip, HiOutlineClock } from 'react-icons/hi'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 import './Dashboard.css'
 
-const KPI_CARDS = [
-  { label: 'Total Conversations', value: '1,247', change: '+12%', trend: 'up', icon: HiOutlineChat, iconColor: '#8b5cf6' },
-  { label: 'Hot Leads', value: '89', change: '+8%', trend: 'up', icon: HiOutlineFire, iconColor: '#ef4444' },
-  { label: 'Bot Handled', value: '68%', change: '+5%', trend: 'up', icon: HiOutlineChip, iconColor: '#6366f1' },
-  { label: 'Avg Response Time', value: '2.4 min', change: '-15%', trend: 'down', icon: HiOutlineClock, iconColor: '#3b82f6' },
-]
-
-const CONVERSATIONS_BY_DAY = [
-  { day: 'Mon', incoming: 45, outgoing: 38 },
-  { day: 'Tue', incoming: 52, outgoing: 44 },
-  { day: 'Wed', incoming: 38, outgoing: 35 },
-  { day: 'Thu', incoming: 61, outgoing: 52 },
-  { day: 'Fri', incoming: 55, outgoing: 48 },
-  { day: 'Sat', incoming: 42, outgoing: 39 },
-  { day: 'Sun', incoming: 35, outgoing: 30 },
-]
-
-const LEAD_SOURCES = [
-  { name: 'Facebook Ads', value: 42, color: '#7c3aed' },
-  { name: 'WhatsApp Links', value: 28, color: '#22c55e' },
-  { name: 'Organic', value: 18, color: '#3b82f6' },
-  { name: 'Other', value: 12, color: '#94a3b8' },
-]
-
-const WEEKLY_TRENDS = [
-  { week: 'W1', conversations: 180, hotLeads: 18 },
-  { week: 'W2', conversations: 220, hotLeads: 24 },
-  { week: 'W3', conversations: 195, hotLeads: 22 },
-  { week: 'W4', conversations: 245, hotLeads: 31 },
-]
-
-const BOT_VS_HUMAN = [
-  { day: 'Mon', bot: 32, human: 13 },
-  { day: 'Tue', bot: 38, human: 14 },
-  { day: 'Wed', bot: 28, human: 10 },
-  { day: 'Thu', bot: 42, human: 19 },
-  { day: 'Fri', bot: 39, human: 16 },
-  { day: 'Sat', bot: 30, human: 12 },
-  { day: 'Sun', bot: 24, human: 11 },
-]
-
-const LEADS_BY_STATUS = [
-  { day: 'Mon', hot: 8, warm: 15, cold: 22 },
-  { day: 'Tue', hot: 12, warm: 18, cold: 22 },
-  { day: 'Wed', hot: 6, warm: 14, cold: 18 },
-  { day: 'Thu', hot: 14, warm: 20, cold: 27 },
-  { day: 'Fri', hot: 11, warm: 17, cold: 27 },
-]
-
-const RESPONSE_TIME_DIST = [
-  { name: '< 1 min', value: 45, fill: '#22c55e' },
-  { name: '1–3 min', value: 32, fill: '#3b82f6' },
-  { name: '3–5 min', value: 15, fill: '#f59e0b' },
-  { name: '> 5 min', value: 8, fill: '#ef4444' },
-]
+type OverviewResponse = {
+  kpis: {
+    totalConversations: { value: number; change: string; trend: 'up' | 'down' }
+    hotLeads: { value: number; change: string; trend: 'up' | 'down' }
+    botHandled: { value: number; change: string; trend: 'up' | 'down' }
+    avgResponseTimeMinutes: { value: number; change: string; trend: 'up' | 'down' }
+  }
+  quickStats: {
+    liveChatsNow: number
+    unreadMessages: number
+    needsAttention: number
+  }
+  conversationsByDay: Array<{ day: string; incoming: number; outgoing: number }>
+  leadSources: Array<{ name: string; value: number; color: string }>
+  weeklyTrends: Array<{ week: string; conversations: number; hotLeads: number }>
+  botVsHuman: Array<{ day: string; bot: number; human: number }>
+  leadsByStatus: Array<{ day: string; hot: number; warm: number; cold: number }>
+  responseTimeDist: Array<{ name: string; value: number; fill: string }>
+}
 
 export const Dashboard: React.FC = () => {
+  const { token } = useAuth()
+  const [data, setData] = useState<OverviewResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<OverviewResponse>('/analytics/overview', { token })
+        if (!cancelled) setData(response)
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load overview data')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const kpiCards = useMemo(() => {
+    if (!data) return []
+    return [
+      { label: 'Total Conversations', value: data.kpis.totalConversations.value.toLocaleString(), change: data.kpis.totalConversations.change, trend: data.kpis.totalConversations.trend, icon: HiOutlineChat, iconColor: '#8b5cf6' },
+      { label: 'Hot Leads', value: data.kpis.hotLeads.value.toLocaleString(), change: data.kpis.hotLeads.change, trend: data.kpis.hotLeads.trend, icon: HiOutlineFire, iconColor: '#ef4444' },
+      { label: 'Bot Handled', value: `${data.kpis.botHandled.value.toFixed(1)}%`, change: data.kpis.botHandled.change, trend: data.kpis.botHandled.trend, icon: HiOutlineChip, iconColor: '#6366f1' },
+      { label: 'Avg Response Time', value: `${data.kpis.avgResponseTimeMinutes.value.toFixed(2)} min`, change: data.kpis.avgResponseTimeMinutes.change, trend: data.kpis.avgResponseTimeMinutes.trend, icon: HiOutlineClock, iconColor: '#3b82f6' },
+    ]
+  }, [data])
+
+  if (loading) return <div className="dashboard-overview"><div className="chart-card">Loading overview...</div></div>
+  if (error) return <div className="dashboard-overview"><div className="chart-card">{error}</div></div>
+  if (!data) return <div className="dashboard-overview"><div className="chart-card">No data available</div></div>
+
   return (
     <div className="dashboard-overview">
       <div className="dashboard-cards">
-        {KPI_CARDS.map((card) => {
+        {kpiCards.map((card) => {
           const Icon = card.icon
           return (
             <div key={card.label} className="dashboard-card">
@@ -97,14 +103,11 @@ export const Dashboard: React.FC = () => {
         <div className="chart-card chart-wide">
           <div className="chart-title">Conversations (Incoming vs Outgoing)</div>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={CONVERSATIONS_BY_DAY}>
+            <BarChart data={data.conversationsByDay}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip
-                contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                labelStyle={{ color: '#334155' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }} />
               <Legend />
               <Bar dataKey="incoming" name="Incoming" fill="#7c3aed" radius={[4, 4, 0, 0]} />
               <Bar dataKey="outgoing" name="Outgoing" fill="#94a3b8" radius={[4, 4, 0, 0]} />
@@ -116,7 +119,7 @@ export const Dashboard: React.FC = () => {
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
-                data={LEAD_SOURCES}
+                data={data.leadSources}
                 cx="50%"
                 cy="50%"
                 innerRadius={50}
@@ -125,7 +128,7 @@ export const Dashboard: React.FC = () => {
                 dataKey="value"
                 label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
               >
-                {LEAD_SOURCES.map((entry, index) => (
+                {data.leadSources.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
@@ -138,31 +141,14 @@ export const Dashboard: React.FC = () => {
         <div className="chart-card chart-wide">
           <div className="chart-title">Weekly Trends</div>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={WEEKLY_TRENDS}>
+            <LineChart data={data.weeklyTrends}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="week" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip
-                contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                labelStyle={{ color: '#334155' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }} />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="conversations"
-                name="Conversations"
-                stroke="#7c3aed"
-                strokeWidth={2}
-                dot={{ fill: '#7c3aed', r: 4 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="hotLeads"
-                name="Hot Leads"
-                stroke="#22c55e"
-                strokeWidth={2}
-                dot={{ fill: '#22c55e', r: 4 }}
-              />
+              <Line type="monotone" dataKey="conversations" name="Conversations" stroke="#7c3aed" strokeWidth={2} dot={{ fill: '#7c3aed', r: 4 }} />
+              <Line type="monotone" dataKey="hotLeads" name="Hot Leads" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e', r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -170,15 +156,15 @@ export const Dashboard: React.FC = () => {
           <div className="chart-title">Quick Stats</div>
           <div className="quick-stats">
             <div className="quick-stat">
-              <span className="quick-stat-value">23</span>
+              <span className="quick-stat-value">{data.quickStats.liveChatsNow}</span>
               <span className="quick-stat-label">Live chats now</span>
             </div>
             <div className="quick-stat">
-              <span className="quick-stat-value">156</span>
+              <span className="quick-stat-value">{data.quickStats.unreadMessages}</span>
               <span className="quick-stat-label">Unread messages</span>
             </div>
             <div className="quick-stat">
-              <span className="quick-stat-value">12</span>
+              <span className="quick-stat-value">{data.quickStats.needsAttention}</span>
               <span className="quick-stat-label">Needs attention</span>
             </div>
           </div>
@@ -188,14 +174,11 @@ export const Dashboard: React.FC = () => {
         <div className="chart-card chart-wide">
           <div className="chart-title">Bot vs Human Handled</div>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={BOT_VS_HUMAN}>
+            <AreaChart data={data.botVsHuman}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip
-                contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                labelStyle={{ color: '#334155' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }} />
               <Legend />
               <Area type="monotone" dataKey="bot" name="Bot" stackId="1" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.6} />
               <Area type="monotone" dataKey="human" name="Human" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.6} />
@@ -205,13 +188,13 @@ export const Dashboard: React.FC = () => {
         <div className="chart-card">
           <div className="chart-title">Response Time Distribution</div>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={RESPONSE_TIME_DIST} layout="vertical" margin={{ left: 0 }}>
+            <BarChart data={data.responseTimeDist} layout="vertical" margin={{ left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis type="number" stroke="#64748b" fontSize={12} />
               <YAxis dataKey="name" type="category" stroke="#64748b" fontSize={12} width={80} />
               <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }} />
-              <Bar dataKey="value" name="Leads" fill="#7c3aed" radius={[0, 4, 4, 0]}>
-                {RESPONSE_TIME_DIST.map((entry, index) => (
+              <Bar dataKey="value" name="Count" fill="#7c3aed" radius={[0, 4, 4, 0]}>
+                {data.responseTimeDist.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Bar>
@@ -223,17 +206,14 @@ export const Dashboard: React.FC = () => {
         <div className="chart-card chart-full">
           <div className="chart-title">Leads by Status (Hot / Warm / Cold)</div>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={LEADS_BY_STATUS}>
+            <BarChart data={data.leadsByStatus}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={12} />
               <YAxis stroke="#64748b" fontSize={12} />
-              <Tooltip
-                contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                labelStyle={{ color: '#334155' }}
-              />
+              <Tooltip contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }} />
               <Legend />
               <Bar dataKey="hot" name="Hot" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="warm" name="Warm" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="warm" name="Warm" stackId="a" fill="#f59e0b" />
               <Bar dataKey="cold" name="Cold" stackId="a" fill="#94a3b8" radius={[0, 0, 4, 4]} />
             </BarChart>
           </ResponsiveContainer>
@@ -242,3 +222,4 @@ export const Dashboard: React.FC = () => {
     </div>
   )
 }
+

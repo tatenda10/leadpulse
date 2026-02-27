@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineTag, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
 import './ContactTags.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
 type Tag = {
   id: string
@@ -11,36 +13,60 @@ type Tag = {
 
 const TAG_COLORS = ['#7c3aed', '#ef4444', '#22c55e', '#f59e0b', '#3b82f6', '#ec4899']
 
-const MOCK_TAGS: Tag[] = [
-  { id: '1', name: 'vip', color: '#ef4444', contactCount: 12 },
-  { id: '2', name: 'callback-requested', color: '#f59e0b', contactCount: 32 },
-  { id: '3', name: 'catalogue-sent', color: '#22c55e', contactCount: 89 },
-  { id: '4', name: 'facebook-lead', color: '#3b82f6', contactCount: 156 },
-]
+type TagsResponse = { tags: Tag[] }
 
 export const ContactTags: React.FC = () => {
-  const [tags, setTags] = useState<Tag[]>(MOCK_TAGS)
+  const { token } = useAuth()
+  const [tags, setTags] = useState<Tag[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const deleteTag = (id: string) => {
-    setTags((prev) => prev.filter((t) => t.id !== id))
-    setEditingId(null)
+  const loadTags = async () => {
+    if (!token) return
+    try {
+      const response = await apiRequest<TagsResponse>('/contacts/tags', { token })
+      setTags(response.tags)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load tags')
+    }
   }
 
-  const saveTag = (id: string, name: string, color: string) => {
-    setTags((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, name, color } : t))
-    )
-    setEditingId(null)
+  useEffect(() => {
+    void loadTags()
+  }, [token])
+
+  const deleteTag = async (id: string) => {
+    if (!token) return
+    try {
+      await apiRequest(`/contacts/tags/${id}`, { method: 'DELETE', token })
+      setTags((prev) => prev.filter((t) => t.id !== id))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete tag')
+    }
   }
 
-  const addTag = (name: string, color: string) => {
-    setTags((prev) => [
-      { id: String(Date.now()), name, color, contactCount: 0 },
-      ...prev,
-    ])
-    setIsAdding(false)
+  const saveTag = async (id: string, name: string, color: string) => {
+    if (!token) return
+    try {
+      await apiRequest(`/contacts/tags/${id}`, { method: 'PATCH', body: { name, color }, token })
+      await loadTags()
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save tag')
+    }
+  }
+
+  const addTag = async (name: string, color: string) => {
+    if (!token) return
+    try {
+      await apiRequest('/contacts/tags', { method: 'POST', body: { name, color }, token })
+      await loadTags()
+      setIsAdding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add tag')
+    }
   }
 
   return (
@@ -55,22 +81,20 @@ export const ContactTags: React.FC = () => {
             Create tags to organize and filter your contacts.
           </p>
         </div>
-        <button
-          type="button"
-          className="contact-tags-add-btn"
-          onClick={() => setIsAdding(true)}
-        >
+        <button type="button" className="contact-tags-add-btn" onClick={() => setIsAdding(true)}>
           <HiOutlinePlus size={18} />
           Add tag
         </button>
       </header>
+
+      {error && <div style={{ color: '#b91c1c', fontSize: 12 }}>{error}</div>}
 
       <div className="contact-tags-list">
         {isAdding && (
           <ContactTagCard
             isNew
             tag={{ id: 'new', name: '', color: TAG_COLORS[0], contactCount: 0 }}
-            onSave={(name, color) => addTag(name, color)}
+            onSave={(name, color) => void addTag(name, color)}
             onCancel={() => setIsAdding(false)}
           />
         )}
@@ -80,8 +104,8 @@ export const ContactTags: React.FC = () => {
             tag={tag}
             isEditing={editingId === tag.id}
             onEdit={() => setEditingId(tag.id)}
-            onDelete={() => deleteTag(tag.id)}
-            onSave={(name, color) => saveTag(tag.id, name, color)}
+            onDelete={() => void deleteTag(tag.id)}
+            onSave={(name, color) => void saveTag(tag.id, name, color)}
             onCancel={() => setEditingId(null)}
           />
         ))}
@@ -100,15 +124,7 @@ type ContactTagCardProps = {
   onCancel?: () => void
 }
 
-const ContactTagCard: React.FC<ContactTagCardProps> = ({
-  tag,
-  isNew,
-  isEditing,
-  onEdit,
-  onDelete,
-  onSave,
-  onCancel,
-}) => {
+const ContactTagCard: React.FC<ContactTagCardProps> = ({ tag, isNew, isEditing, onEdit, onDelete, onSave, onCancel }) => {
   const [name, setName] = useState(tag.name)
   const [color, setColor] = useState(tag.color)
   const canEdit = isNew ?? isEditing
@@ -127,12 +143,8 @@ const ContactTagCard: React.FC<ContactTagCardProps> = ({
             </span>
             <span className="contact-tag-count">{tag.contactCount} contacts</span>
             <div className="contact-tag-actions">
-              <button type="button" className="icon-btn" onClick={onEdit}>
-                <HiOutlinePencil size={16} />
-              </button>
-              <button type="button" className="icon-btn danger" onClick={onDelete}>
-                <HiOutlineTrash size={16} />
-              </button>
+              <button type="button" className="icon-btn" onClick={onEdit}><HiOutlinePencil size={16} /></button>
+              <button type="button" className="icon-btn danger" onClick={onDelete}><HiOutlineTrash size={16} /></button>
             </div>
           </>
         ) : (
@@ -145,11 +157,7 @@ const ContactTagCard: React.FC<ContactTagCardProps> = ({
         <div className="contact-tag-body">
           <div className="contact-tag-field">
             <label>Tag name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. vip"
-            />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. vip" />
           </div>
           <div className="contact-tag-field">
             <label>Color</label>
@@ -166,12 +174,8 @@ const ContactTagCard: React.FC<ContactTagCardProps> = ({
             </div>
           </div>
           <div className="contact-tag-footer">
-            <button type="button" className="btn-secondary" onClick={onCancel}>
-              Cancel
-            </button>
-            <button type="button" className="btn-primary" onClick={handleSave} disabled={!name.trim()}>
-              {isNew ? 'Add' : 'Save'}
-            </button>
+            <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+            <button type="button" className="btn-primary" onClick={handleSave} disabled={!name.trim()}>{isNew ? 'Add' : 'Save'}</button>
           </div>
         </div>
       )}

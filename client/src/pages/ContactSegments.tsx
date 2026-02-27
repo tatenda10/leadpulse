@@ -1,26 +1,26 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineViewGrid, HiOutlinePlus, HiOutlineX } from 'react-icons/hi'
 import './ContactSegments.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
 type Segment = {
   id: string
   name: string
   description: string
   criteria: string
+  criteriaType: 'score' | 'last_contact' | 'tag' | 'source'
+  criteriaValue: string
   contactCount: number
 }
 
-const MOCK_SEGMENTS: Segment[] = [
-  { id: '1', name: 'Hot Leads', description: 'High-intent leads ready for follow-up', criteria: 'Score ≥ 70', contactCount: 89 },
-  { id: '2', name: 'New this week', description: 'Contacts who messaged in the last 7 days', criteria: 'Last contact ≤ 7 days', contactCount: 124 },
-  { id: '3', name: 'Callback requested', description: 'Asked for a callback or follow-up', criteria: 'Tag: callback-requested', contactCount: 32 },
-  { id: '4', name: 'Facebook Ads', description: 'Came from Facebook ad campaigns', criteria: 'Source: Facebook', contactCount: 256 },
-]
+type SegmentsResponse = { segments: Segment[] }
 
 type Toast = { show: boolean; type: 'success' | 'error'; message: string }
 
 export const ContactSegments: React.FC = () => {
-  const [segments, setSegments] = useState<Segment[]>(MOCK_SEGMENTS)
+  const { token } = useAuth()
+  const [segments, setSegments] = useState<Segment[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [viewSegment, setViewSegment] = useState<Segment | null>(null)
   const [toast, setToast] = useState<Toast>({ show: false, type: 'success', message: '' })
@@ -30,18 +30,38 @@ export const ContactSegments: React.FC = () => {
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 4000)
   }
 
-  const handleCreateSegment = (name: string, description: string, criteriaType: string, criteriaValue: string) => {
-    const criteria = criteriaType === 'score' ? `Score ≥ ${criteriaValue}` : criteriaType === 'last_contact' ? `Last contact ≤ ${criteriaValue} days` : criteriaType === 'tag' ? `Tag: ${criteriaValue}` : `Source: ${criteriaValue}`
-    const newSegment: Segment = {
-      id: String(Date.now()),
-      name,
-      description,
-      criteria,
-      contactCount: 0,
+  useEffect(() => {
+    let cancelled = false
+    async function loadSegments() {
+      if (!token) return
+      try {
+        const response = await apiRequest<SegmentsResponse>('/contacts/segments', { token })
+        if (!cancelled) setSegments(response.segments)
+      } catch (e) {
+        if (!cancelled) showToast('error', e instanceof Error ? e.message : 'Failed to load segments')
+      }
     }
-    setSegments((prev) => [newSegment, ...prev])
-    setModalOpen(false)
-    showToast('success', 'Segment created successfully.')
+    void loadSegments()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const handleCreateSegment = async (name: string, description: string, criteriaType: string, criteriaValue: string) => {
+    if (!token) return
+    try {
+      await apiRequest('/contacts/segments', {
+        method: 'POST',
+        body: { name, description, criteriaType, criteriaValue },
+        token,
+      })
+      const refreshed = await apiRequest<SegmentsResponse>('/contacts/segments', { token })
+      setSegments(refreshed.segments)
+      setModalOpen(false)
+      showToast('success', 'Segment created successfully.')
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to create segment')
+    }
   }
 
   return (
@@ -73,23 +93,14 @@ export const ContactSegments: React.FC = () => {
             </div>
             <div className="segment-footer">
               <span className="segment-count">{segment.contactCount} contacts</span>
-              <button
-                type="button"
-                className="segment-view-btn"
-                onClick={() => setViewSegment(segment)}
-              >
-                View
-              </button>
+              <button type="button" className="segment-view-btn" onClick={() => setViewSegment(segment)}>View</button>
             </div>
           </div>
         ))}
       </div>
 
       {modalOpen && (
-        <CreateSegmentModal
-          onClose={() => setModalOpen(false)}
-          onCreate={handleCreateSegment}
-        />
+        <CreateSegmentModal onClose={() => setModalOpen(false)} onCreate={handleCreateSegment} />
       )}
 
       {toast.show && (
@@ -99,10 +110,7 @@ export const ContactSegments: React.FC = () => {
       )}
 
       {viewSegment && (
-        <SegmentDetailsModal
-          segment={viewSegment}
-          onClose={() => setViewSegment(null)}
-        />
+        <SegmentDetailsModal segment={viewSegment} onClose={() => setViewSegment(null)} />
       )}
     </div>
   )
@@ -139,33 +147,16 @@ const CreateSegmentModal: React.FC<CreateSegmentModalProps> = ({ onClose, onCrea
         <form id="create-segment-form" onSubmit={handleSubmit} className="segment-modal-body">
           <div className="segment-modal-field">
             <label htmlFor="segment-name">Name <span className="segment-field-required">*</span></label>
-            <input
-              id="segment-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Hot Leads"
-              required
-            />
+            <input id="segment-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Hot Leads" required />
           </div>
           <div className="segment-modal-field">
             <label htmlFor="segment-desc">Description</label>
-            <textarea
-              id="segment-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of this segment"
-              rows={2}
-            />
+            <textarea id="segment-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description of this segment" rows={2} />
           </div>
           <div className="segment-modal-field">
             <label htmlFor="segment-criteria-type">Rule type</label>
-            <select
-              id="segment-criteria-type"
-              value={criteriaType}
-              onChange={(e) => setCriteriaType(e.target.value)}
-            >
-              <option value="score">Score (≥)</option>
+            <select id="segment-criteria-type" value={criteriaType} onChange={(e) => setCriteriaType(e.target.value)}>
+              <option value="score">Score (&gt;=)</option>
               <option value="last_contact">Last contact (days)</option>
               <option value="tag">Tag</option>
               <option value="source">Source</option>
@@ -187,9 +178,7 @@ const CreateSegmentModal: React.FC<CreateSegmentModalProps> = ({ onClose, onCrea
           </div>
         </form>
         <footer className="segment-modal-footer">
-          <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
+          <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>Cancel</button>
           <button type="submit" form="create-segment-form" className="segment-modal-btn segment-modal-btn-primary" disabled={!name.trim() || !criteriaValue.trim()}>
             Create segment
           </button>
@@ -222,9 +211,7 @@ const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({ segment, onCl
           </div>
           <div className="segment-modal-field">
             <label>Description</label>
-            <div className="segment-detail-value">
-              {segment.description || <span className="segment-detail-muted">No description</span>}
-            </div>
+            <div className="segment-detail-value">{segment.description || <span className="segment-detail-muted">No description</span>}</div>
           </div>
           <div className="segment-modal-field">
             <label>Rule</label>
@@ -236,13 +223,7 @@ const SegmentDetailsModal: React.FC<SegmentDetailsModalProps> = ({ segment, onCl
           </div>
         </div>
         <footer className="segment-modal-footer">
-          <button
-            type="button"
-            className="segment-modal-btn segment-modal-btn-primary"
-            onClick={onClose}
-          >
-            Close
-          </button>
+          <button type="button" className="segment-modal-btn segment-modal-btn-primary" onClick={onClose}>Close</button>
         </footer>
       </div>
     </>

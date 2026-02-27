@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   HiOutlineChat,
   HiOutlineFire,
@@ -6,42 +6,75 @@ import {
   HiOutlineUser,
   HiOutlineArrowRight,
 } from 'react-icons/hi'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 import './ActivityFeed.css'
 
-const ACTIVITIES = [
-  { id: 1, type: 'new_chat', contact: '+263 77 123 4567', time: '2 min ago', meta: 'First message', icon: HiOutlineChat, color: '#7c3aed' },
-  { id: 2, type: 'hot_lead', contact: 'John Mbanga', time: '5 min ago', meta: 'Score: 92', icon: HiOutlineFire, color: '#ef4444' },
-  { id: 3, type: 'bot_reply', contact: '+263 71 987 6543', time: '8 min ago', meta: 'Auto-replied', icon: HiOutlineChip, color: '#6366f1' },
-  { id: 4, type: 'takeover', contact: 'Sarah Ncube', time: '12 min ago', meta: 'Agent took over', icon: HiOutlineUser, color: '#22c55e' },
-  { id: 5, type: 'new_chat', contact: '+263 78 555 1234', time: '15 min ago', meta: 'From Facebook', icon: HiOutlineChat, color: '#7c3aed' },
-  { id: 6, type: 'hot_lead', contact: 'Mike Dube', time: '18 min ago', meta: 'Score: 88', icon: HiOutlineFire, color: '#ef4444' },
-  { id: 7, type: 'bot_reply', contact: '+263 77 111 2222', time: '22 min ago', meta: 'Auto-replied', icon: HiOutlineChip, color: '#6366f1' },
-  { id: 8, type: 'new_chat', contact: 'Grace Mutasa', time: '28 min ago', meta: 'Click-to-WhatsApp', icon: HiOutlineChat, color: '#7c3aed' },
-]
+type Activity = {
+  id: string
+  type: 'new_chat' | 'hot_lead' | 'bot_reply' | 'takeover'
+  contact: string
+  time: string
+  meta: string
+}
 
-const TYPE_LABELS: Record<string, string> = {
-  new_chat: 'New conversation',
-  hot_lead: 'Hot lead detected',
-  bot_reply: 'Bot replied',
-  takeover: 'Human takeover',
+type ActivityResponse = {
+  activities: Activity[]
+}
+
+const TYPE_CONFIG: Record<Activity['type'], { label: string; icon: React.ComponentType<{ size?: number }>; color: string }> = {
+  new_chat: { label: 'New conversation', icon: HiOutlineChat, color: '#7c3aed' },
+  hot_lead: { label: 'Hot lead detected', icon: HiOutlineFire, color: '#ef4444' },
+  bot_reply: { label: 'Bot replied', icon: HiOutlineChip, color: '#6366f1' },
+  takeover: { label: 'Human takeover', icon: HiOutlineUser, color: '#22c55e' },
 }
 
 export const ActivityFeed: React.FC = () => {
+  const { token } = useAuth()
+  const [activities, setActivities] = useState<Activity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const run = async () => {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<ActivityResponse>('/analytics/activity', { token })
+        if (!cancelled) setActivities(response.activities || [])
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load activity feed')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  if (loading) return <div className="activity-feed"><div className="activity-item">Loading activity...</div></div>
+  if (error) return <div className="activity-feed"><div className="activity-item">{error}</div></div>
+
   return (
     <div className="activity-feed">
       <div className="activity-feed-header">
         <h2 className="activity-feed-title">Recent activity</h2>
       </div>
       <div className="activity-list">
-        {ACTIVITIES.map((activity) => {
-          const Icon = activity.icon
+        {activities.map((activity) => {
+          const cfg = TYPE_CONFIG[activity.type] || TYPE_CONFIG.new_chat
+          const Icon = cfg.icon
           return (
             <div key={activity.id} className="activity-item">
-              <div className="activity-icon-wrap" style={{ backgroundColor: `${activity.color}20`, color: activity.color }}>
+              <div className="activity-icon-wrap" style={{ backgroundColor: `${cfg.color}20`, color: cfg.color }}>
                 <Icon size={18} />
               </div>
               <div className="activity-content">
-                <div className="activity-type">{TYPE_LABELS[activity.type]}</div>
+                <div className="activity-type">{cfg.label}</div>
                 <div className="activity-contact">{activity.contact}</div>
                 <div className="activity-meta">{activity.meta}</div>
               </div>
@@ -50,7 +83,9 @@ export const ActivityFeed: React.FC = () => {
             </div>
           )
         })}
+        {activities.length === 0 && <div className="activity-item">No recent activity</div>}
       </div>
     </div>
   )
 }
+

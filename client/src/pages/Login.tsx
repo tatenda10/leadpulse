@@ -1,33 +1,27 @@
 import React, { useState } from 'react'
 import { Logo } from '../layout/Logo'
+import { useAuth } from '../contexts/AuthContext'
 import './Login.css'
 
-const DEMO_USER = 'sysadmin'
-const DEMO_PASSWORD = 'password123'
-
-type LoginProps = {
-  onLogin: (emailOrPhone: string, password: string) => boolean
-}
-
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [emailOrPhone, setEmailOrPhone] = useState('')
+export const Login: React.FC = () => {
+  const { login } = useAuth()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    const ok = onLogin(emailOrPhone.trim(), password)
-    if (!ok) {
-      setError('Invalid email/phone or password. Please try again.')
+    setIsSubmitting(true)
+    try {
+      await login(username.trim(), password)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      setError(message)
+    } finally {
+      setIsSubmitting(false)
     }
-  }
-
-  const simulateLogin = () => {
-    setEmailOrPhone(DEMO_USER)
-    setPassword(DEMO_PASSWORD)
-    setError('')
-    onLogin(DEMO_USER, DEMO_PASSWORD)
   }
 
   return (
@@ -50,13 +44,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="login-field">
-              <label htmlFor="login-email">Email or Phone</label>
+              <label htmlFor="login-username">Username</label>
               <input
-                id="login-email"
+                id="login-username"
                 type="text"
-                value={emailOrPhone}
-                onChange={(e) => setEmailOrPhone(e.target.value)}
-                placeholder="Enter your email or phone number"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
                 autoComplete="username"
               />
             </div>
@@ -72,16 +66,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               />
             </div>
             {error && <p className="login-error" role="alert">{error}</p>}
-            <button type="submit" className="login-submit-btn">
-              Log In
+            <button type="submit" className="login-submit-btn" disabled={isSubmitting}>
+              {isSubmitting ? 'Logging in...' : 'Log In'}
             </button>
           </form>
-
-          <p className="login-simulate">
-            <button type="button" className="login-simulate-btn" onClick={simulateLogin}>
-              Simulate login (sysadmin / password123)
-            </button>
-          </p>
         </div>
       </div>
       </div>

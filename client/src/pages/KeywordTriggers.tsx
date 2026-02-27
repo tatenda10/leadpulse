@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineKey, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
 import './KeywordTriggers.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
 type ActionType = 'reply' | 'escalate' | 'menu'
 
@@ -12,12 +14,8 @@ type KeywordTrigger = {
   enabled: boolean
 }
 
-const MOCK_TRIGGERS: KeywordTrigger[] = [
-  { id: '1', keywords: 'human, agent, speak to someone', action: 'escalate', value: '', enabled: true },
-  { id: '2', keywords: 'menu, options, help', action: 'menu', value: 'main_menu', enabled: true },
-  { id: '3', keywords: 'order, purchase, buy', action: 'reply', value: 'Great! I can help you place an order. Would you like our catalogue first?', enabled: true },
-  { id: '4', keywords: 'cancel, refund', action: 'escalate', value: '', enabled: true },
-]
+type TriggersResponse = { triggers: KeywordTrigger[] }
+type TriggerResponse = { trigger: KeywordTrigger }
 
 const ACTION_LABELS: Record<ActionType, string> = {
   reply: 'Send reply',
@@ -26,40 +24,92 @@ const ACTION_LABELS: Record<ActionType, string> = {
 }
 
 export const KeywordTriggers: React.FC = () => {
-  const [triggers, setTriggers] = useState<KeywordTrigger[]>(MOCK_TRIGGERS)
+  const { token } = useAuth()
+  const [triggers, setTriggers] = useState<KeywordTrigger[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleTrigger = (id: string) => {
-    setTriggers((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, enabled: !t.enabled } : t))
-    )
-  }
+  useEffect(() => {
+    let cancelled = false
 
-  const deleteTrigger = (id: string) => {
-    setTriggers((prev) => prev.filter((t) => t.id !== id))
-    setEditingId(null)
-  }
-
-  const saveTrigger = (id: string, keywords: string, action: ActionType, value: string) => {
-    setTriggers((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, keywords, action, value } : t
-      )
-    )
-    setEditingId(null)
-  }
-
-  const addTrigger = (keywords: string, action: ActionType, value: string) => {
-    const newTrigger: KeywordTrigger = {
-      id: String(Date.now()),
-      keywords,
-      action,
-      value,
-      enabled: true,
+    async function loadTriggers() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<TriggersResponse>('/settings/keyword-triggers', { token })
+        if (!cancelled) setTriggers(response.triggers)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load keyword triggers')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    setTriggers((prev) => [newTrigger, ...prev])
-    setIsAdding(false)
+
+    void loadTriggers()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const toggleTrigger = async (id: string) => {
+    if (!token) return
+    const current = triggers.find((t) => t.id === id)
+    if (!current) return
+
+    try {
+      const response = await apiRequest<TriggerResponse>(`/settings/keyword-triggers/${id}`, {
+        method: 'PATCH',
+        body: { enabled: !current.enabled },
+        token,
+      })
+      setTriggers((prev) => prev.map((t) => (t.id === id ? response.trigger : t)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update trigger')
+    }
+  }
+
+  const deleteTrigger = async (id: string) => {
+    if (!token) return
+    try {
+      await apiRequest(`/settings/keyword-triggers/${id}`, { method: 'DELETE', token })
+      setTriggers((prev) => prev.filter((t) => t.id !== id))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete trigger')
+    }
+  }
+
+  const saveTrigger = async (id: string, keywords: string, action: ActionType, value: string) => {
+    if (!token) return
+    try {
+      const response = await apiRequest<TriggerResponse>(`/settings/keyword-triggers/${id}`, {
+        method: 'PATCH',
+        body: { keywords, action, value },
+        token,
+      })
+      setTriggers((prev) => prev.map((t) => (t.id === id ? response.trigger : t)))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save trigger')
+    }
+  }
+
+  const addTrigger = async (keywords: string, action: ActionType, value: string) => {
+    if (!token) return
+    try {
+      const response = await apiRequest<TriggerResponse>('/settings/keyword-triggers', {
+        method: 'POST',
+        body: { keywords, action, value, enabled: true },
+        token,
+      })
+      setTriggers((prev) => [response.trigger, ...prev])
+      setIsAdding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add trigger')
+    }
   }
 
   return (
@@ -84,6 +134,11 @@ export const KeywordTriggers: React.FC = () => {
         </button>
       </header>
 
+      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+      {loading ? (
+        <div className="keyword-triggers-empty"><p>Loading keyword triggers...</p></div>
+      ) : (
       <div className="keyword-triggers-list">
         {isAdding && (
           <KeywordTriggerCard
@@ -95,7 +150,7 @@ export const KeywordTriggers: React.FC = () => {
               value: '',
               enabled: true,
             }}
-            onSave={(keywords, action, value) => addTrigger(keywords, action, value)}
+            onSave={(keywords, action, value) => void addTrigger(keywords, action, value)}
             onCancel={() => setIsAdding(false)}
           />
         )}
@@ -104,16 +159,17 @@ export const KeywordTriggers: React.FC = () => {
             key={trigger.id}
             trigger={trigger}
             isEditing={editingId === trigger.id}
-            onToggle={() => toggleTrigger(trigger.id)}
+            onToggle={() => void toggleTrigger(trigger.id)}
             onEdit={() => setEditingId(trigger.id)}
-            onDelete={() => deleteTrigger(trigger.id)}
-            onSave={(keywords, action, value) => saveTrigger(trigger.id, keywords, action, value)}
+            onDelete={() => void deleteTrigger(trigger.id)}
+            onSave={(keywords, action, value) => void saveTrigger(trigger.id, keywords, action, value)}
             onCancel={() => setEditingId(null)}
           />
         ))}
       </div>
+      )}
 
-      {triggers.length === 0 && !isAdding && (
+      {triggers.length === 0 && !isAdding && !loading && (
         <div className="keyword-triggers-empty">
           <HiOutlineKey size={48} className="empty-icon" />
           <p>No keyword triggers yet</p>

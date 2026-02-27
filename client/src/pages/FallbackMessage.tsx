@@ -1,21 +1,71 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineExclamation } from 'react-icons/hi'
 import './FallbackMessage.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
+
+type BotMessageResponse = {
+  enabled: boolean
+  message: string
+}
 
 export const FallbackMessage: React.FC = () => {
-  const [message, setMessage] = useState(
-    "I'm sorry, I didn't quite understand that. Could you please rephrase or type 'help' to see our options?"
-  )
+  const { token } = useAuth()
+  const [message, setMessage] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [saved, setSaved] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadConfig() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<BotMessageResponse>('/settings/fallback-message', { token })
+        if (cancelled) return
+        setMessage(response.message)
+        setEnabled(response.enabled)
+        setSaved(true)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load fallback message')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadConfig()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const handleChange = (value: string) => {
     setMessage(value)
     setSaved(false)
   }
 
-  const handleSave = () => {
-    setSaved(true)
+  const handleEnabledChange = (value: boolean) => {
+    setEnabled(value)
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
+    if (!token) return
+    try {
+      await apiRequest<BotMessageResponse>('/settings/fallback-message', {
+        method: 'PUT',
+        body: { message, enabled },
+        token,
+      })
+      setSaved(true)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save fallback message')
+    }
   }
 
   return (
@@ -32,6 +82,11 @@ export const FallbackMessage: React.FC = () => {
         </div>
       </header>
 
+      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+      {loading ? (
+        <div className="fallback-message-card"><p>Loading fallback message...</p></div>
+      ) : (
       <div className="fallback-message-content">
         <div className="fallback-message-card">
           <div className="fallback-message-card-header">
@@ -39,7 +94,7 @@ export const FallbackMessage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
+                onChange={(e) => handleEnabledChange(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>
@@ -63,8 +118,8 @@ export const FallbackMessage: React.FC = () => {
             <button
               type="button"
               className="fallback-save-btn"
-              onClick={handleSave}
-              disabled={saved}
+              onClick={() => void handleSave()}
+              disabled={saved || !message.trim()}
             >
               {saved ? 'Saved' : 'Save changes'}
             </button>
@@ -79,6 +134,7 @@ export const FallbackMessage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

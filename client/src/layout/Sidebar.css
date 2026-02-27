@@ -120,3 +120,7 @@
     transform: translateX(0);
   }
 }
+
+.dashboard-container.sidebar-hidden .sidebar {
+  transform: translateX(-100%);
+}

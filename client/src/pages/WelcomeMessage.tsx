@@ -1,21 +1,71 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineChatAlt } from 'react-icons/hi'
 import './WelcomeMessage.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
+
+type BotMessageResponse = {
+  enabled: boolean
+  message: string
+}
 
 export const WelcomeMessage: React.FC = () => {
-  const [message, setMessage] = useState(
-    "Hello! 👋 Thanks for reaching out. I'm your assistant and I'm here to help. How can I assist you today?"
-  )
+  const { token } = useAuth()
+  const [message, setMessage] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [saved, setSaved] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadConfig() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<BotMessageResponse>('/settings/welcome-message', { token })
+        if (cancelled) return
+        setMessage(response.message)
+        setEnabled(response.enabled)
+        setSaved(true)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load welcome message')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadConfig()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const handleChange = (value: string) => {
     setMessage(value)
     setSaved(false)
   }
 
-  const handleSave = () => {
-    setSaved(true)
+  const handleEnabledChange = (value: boolean) => {
+    setEnabled(value)
+    setSaved(false)
+  }
+
+  const handleSave = async () => {
+    if (!token) return
+    try {
+      await apiRequest<BotMessageResponse>('/settings/welcome-message', {
+        method: 'PUT',
+        body: { message, enabled },
+        token,
+      })
+      setSaved(true)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save welcome message')
+    }
   }
 
   return (
@@ -32,6 +82,11 @@ export const WelcomeMessage: React.FC = () => {
         </div>
       </header>
 
+      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+      {loading ? (
+        <div className="welcome-message-card"><p>Loading welcome message...</p></div>
+      ) : (
       <div className="welcome-message-content">
         <div className="welcome-message-card">
           <div className="welcome-message-card-header">
@@ -39,7 +94,7 @@ export const WelcomeMessage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
+                onChange={(e) => handleEnabledChange(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>
@@ -63,8 +118,8 @@ export const WelcomeMessage: React.FC = () => {
             <button
               type="button"
               className="welcome-save-btn"
-              onClick={handleSave}
-              disabled={saved}
+              onClick={() => void handleSave()}
+              disabled={saved || !message.trim()}
             >
               {saved ? 'Saved' : 'Save changes'}
             </button>
@@ -79,6 +134,7 @@ export const WelcomeMessage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

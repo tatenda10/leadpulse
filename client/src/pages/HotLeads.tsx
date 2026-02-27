@@ -1,28 +1,163 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { HiOutlineFire, HiOutlineChat, HiOutlineChip, HiOutlineUser } from 'react-icons/hi'
 import './HotLeads.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
-type HotLead = {
+type Lead = {
   id: string
   contact: string
   phone: string
   score: number
   lastMessage: string
-  time: string
+  lastMessageAt: string | null
   status: 'bot' | 'human'
   source: string
 }
 
-const MOCK_HOT_LEADS: HotLead[] = [
-  { id: '1', contact: 'John Mbanga', phone: '+263 77 123 4567', score: 92, lastMessage: 'What is your best price?', time: '2m ago', status: 'human', source: 'Facebook Ads' },
-  { id: '2', contact: '+263 78 555 1234', phone: '+263 78 555 1234', score: 88, lastMessage: 'I want to buy today', time: '8m ago', status: 'bot', source: 'WhatsApp Link' },
-  { id: '3', contact: 'Grace Mutasa', phone: '+263 71 333 4444', score: 85, lastMessage: 'Send me the catalogue', time: '18m ago', status: 'bot', source: 'Facebook Ads' },
-  { id: '4', contact: 'David Sibanda', phone: '+263 77 999 8888', score: 82, lastMessage: 'Ready to place order', time: '25m ago', status: 'bot', source: 'Organic' },
-  { id: '5', contact: 'Lisa Ndlovu', phone: '+263 71 444 5555', score: 78, lastMessage: 'When can I get a quote?', time: '32m ago', status: 'human', source: 'Facebook Ads' },
-]
+type ConversationsResponse = {
+  conversations: Array<{
+    id: string
+    contact: string
+    phone: string
+    lastMessage: string
+    lastMessageAt: string | null
+    status: 'bot' | 'human'
+    leadScore: number
+    source: string | null
+  }>
+}
+
+type ThresholdResponse = {
+  warmThreshold: number
+  hotThreshold: number
+}
+
+type UpdateConversationResponse = {
+  conversation: {
+    id: number | string
+    status: 'bot' | 'human'
+    segment: string | null
+    lead_score: number | null
+  }
+}
+
+function formatRelativeTime(value: string | null): string {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+
+  if (diffMinutes < 1) return 'now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays}d ago`
+
+  return date.toLocaleDateString()
+}
 
 export const HotLeads: React.FC = () => {
-  const [selectedId, setSelectedId] = useState<string | null>(MOCK_HOT_LEADS[0]?.id)
+  const { token } = useAuth()
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [hotThreshold, setHotThreshold] = useState(70)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadData() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+
+      try {
+        const [threshold, convs] = await Promise.all([
+          apiRequest<ThresholdResponse>('/settings/hot-lead-threshold', { token }),
+          apiRequest<ConversationsResponse>('/conversations', { token }),
+        ])
+
+        if (cancelled) return
+
+        setHotThreshold(threshold.hotThreshold)
+
+        const nextLeads: Lead[] = convs.conversations
+          .map((c) => ({
+            id: c.id,
+            contact: c.contact,
+            phone: c.phone,
+            score: Number(c.leadScore || 0),
+            lastMessage: c.lastMessage || 'No messages yet',
+            lastMessageAt: c.lastMessageAt,
+            status: c.status,
+            source: c.source || 'organic',
+          }))
+          .filter((c) => c.score >= threshold.hotThreshold)
+          .sort((a, b) => b.score - a.score)
+
+        setLeads(nextLeads)
+        setSelectedId((current) => {
+          if (current && nextLeads.some((l) => l.id === current)) return current
+          return nextLeads[0]?.id ?? null
+        })
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load hot leads')
+          setLeads([])
+          setSelectedId(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void loadData()
+
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const selectedLead = useMemo(() => leads.find((l) => l.id === selectedId) ?? null, [leads, selectedId])
+
+  const handleToggleTakeover = async () => {
+    if (!selectedLead || !token || updatingStatus) return
+    const nextStatus: 'bot' | 'human' = selectedLead.status === 'bot' ? 'human' : 'bot'
+
+    setUpdatingStatus(true)
+    setError(null)
+
+    try {
+      const response = await apiRequest<UpdateConversationResponse>(`/conversations/${selectedLead.id}`, {
+        method: 'PATCH',
+        body: { status: nextStatus },
+        token,
+      })
+
+      setLeads((prev) =>
+        prev.map((lead) =>
+          lead.id === selectedLead.id
+            ? {
+                ...lead,
+                status: response.conversation.status,
+              }
+            : lead
+        )
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update lead status')
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   return (
     <div className="hot-leads">
@@ -31,84 +166,89 @@ export const HotLeads: React.FC = () => {
           <HiOutlineFire size={24} className="hot-leads-icon" />
           <div>
             <h2 className="hot-leads-title">Hot Leads</h2>
-            <p className="hot-leads-subtitle">{MOCK_HOT_LEADS.length} high-intent leads need attention</p>
+            <p className="hot-leads-subtitle">{leads.length} leads at or above threshold ({hotThreshold}+)</p>
           </div>
         </div>
       </div>
+
+      {error && <div style={{ color: '#b91c1c', fontSize: 12 }}>{error}</div>}
+
       <div className="hot-leads-grid">
         <div className="hot-leads-list">
-          {MOCK_HOT_LEADS.map((lead) => (
-            <button
-              key={lead.id}
-              type="button"
-              className={`hot-lead-card ${selectedId === lead.id ? 'active' : ''}`}
-              onClick={() => setSelectedId(lead.id)}
-            >
-              <div className="hot-lead-score" style={{ color: lead.score >= 85 ? '#ef4444' : '#f59e0b' }}>
-                {lead.score}
-              </div>
-              <div className="hot-lead-content">
-                <div className="hot-lead-contact">{lead.contact}</div>
-                <div className="hot-lead-preview">{lead.lastMessage}</div>
-                <div className="hot-lead-meta">
-                  <span className="hot-lead-source">{lead.source}</span>
-                  <span className="hot-lead-time">{lead.time}</span>
+          {loading ? (
+            <div className="hot-leads-detail-empty"><p>Loading hot leads...</p></div>
+          ) : leads.length === 0 ? (
+            <div className="hot-leads-detail-empty">
+              <HiOutlineFire size={40} className="empty-icon" />
+              <p>No hot leads yet</p>
+            </div>
+          ) : (
+            leads.map((lead) => (
+              <button
+                key={lead.id}
+                type="button"
+                className={`hot-lead-card ${selectedId === lead.id ? 'active' : ''}`}
+                onClick={() => setSelectedId(lead.id)}
+              >
+                <div className="hot-lead-score" style={{ color: lead.score >= hotThreshold + 10 ? '#ef4444' : '#f59e0b' }}>
+                  {lead.score}
+                </div>
+                <div className="hot-lead-content">
+                  <div className="hot-lead-contact">{lead.contact}</div>
+                  <div className="hot-lead-preview">{lead.lastMessage}</div>
+                  <div className="hot-lead-meta">
+                    <span className="hot-lead-source">{lead.source}</span>
+                    <span className="hot-lead-time">{formatRelativeTime(lead.lastMessageAt)}</span>
+                  </div>
+                </div>
+                <span className={`hot-lead-status ${lead.status}`}>
+                  {lead.status === 'bot' ? <HiOutlineChip size={14} /> : <HiOutlineUser size={14} />}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+
+        <div className="hot-leads-detail">
+          {selectedLead ? (
+            <>
+              <div className="hot-lead-detail-header">
+                <div className="hot-lead-detail-contact">
+                  <div className="hot-lead-detail-avatar">{selectedLead.contact.charAt(0)}</div>
+                  <div>
+                    <div className="hot-lead-detail-name">{selectedLead.contact}</div>
+                    <div className="hot-lead-detail-phone">{selectedLead.phone}</div>
+                  </div>
+                </div>
+                <div className="hot-lead-detail-score" style={{ color: selectedLead.score >= hotThreshold + 10 ? '#ef4444' : '#f59e0b' }}>
+                  Score: {selectedLead.score}
                 </div>
               </div>
-              <span className={`hot-lead-status ${lead.status}`}>
-                {lead.status === 'bot' ? <HiOutlineChip size={14} /> : <HiOutlineUser size={14} />}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="hot-leads-detail">
-          {selectedId ? (
-            (() => {
-              const lead = MOCK_HOT_LEADS.find((l) => l.id === selectedId)
-              if (!lead) return null
-              return (
-                <>
-                  <div className="hot-lead-detail-header">
-                    <div className="hot-lead-detail-contact">
-                      <div className="hot-lead-detail-avatar">{lead.contact.charAt(0)}</div>
-                      <div>
-                        <div className="hot-lead-detail-name">{lead.contact}</div>
-                        <div className="hot-lead-detail-phone">{lead.phone}</div>
-                      </div>
-                    </div>
-                    <div className="hot-lead-detail-score" style={{ color: lead.score >= 85 ? '#ef4444' : '#f59e0b' }}>
-                      Score: {lead.score}
-                    </div>
-                  </div>
-                  <div className="hot-lead-detail-info">
-                    <div className="hot-lead-detail-row">
-                      <span className="hot-lead-detail-label">Status</span>
-                      <span className="hot-lead-detail-value">{lead.status === 'bot' ? 'Bot handling' : 'Human handling'}</span>
-                    </div>
-                    <div className="hot-lead-detail-row">
-                      <span className="hot-lead-detail-label">Source</span>
-                      <span className="hot-lead-detail-value">{lead.source}</span>
-                    </div>
-                    <div className="hot-lead-detail-row">
-                      <span className="hot-lead-detail-label">Last message</span>
-                      <span className="hot-lead-detail-value">{lead.lastMessage}</span>
-                    </div>
-                  </div>
-                  <div className="hot-lead-detail-actions">
-                    <button type="button" className="hot-lead-btn primary">
-                      <HiOutlineChat size={16} />
-                      Open chat
-                    </button>
-                    {lead.status === 'bot' && (
-                      <button type="button" className="hot-lead-btn secondary">
-                        <HiOutlineUser size={16} />
-                        Take over
-                      </button>
-                    )}
-                  </div>
-                </>
-              )
-            })()
+              <div className="hot-lead-detail-info">
+                <div className="hot-lead-detail-row">
+                  <span className="hot-lead-detail-label">Status</span>
+                  <span className="hot-lead-detail-value">{selectedLead.status === 'bot' ? 'Bot handling' : 'Human handling'}</span>
+                </div>
+                <div className="hot-lead-detail-row">
+                  <span className="hot-lead-detail-label">Source</span>
+                  <span className="hot-lead-detail-value">{selectedLead.source}</span>
+                </div>
+                <div className="hot-lead-detail-row">
+                  <span className="hot-lead-detail-label">Last message</span>
+                  <span className="hot-lead-detail-value">{selectedLead.lastMessage}</span>
+                </div>
+              </div>
+              <div className="hot-lead-detail-actions">
+                <button type="button" className="hot-lead-btn primary" disabled>
+                  <HiOutlineChat size={16} />
+                  Open chat
+                </button>
+                <button type="button" className="hot-lead-btn secondary" onClick={() => void handleToggleTakeover()} disabled={updatingStatus}>
+                  <HiOutlineUser size={16} />
+                  {updatingStatus ? 'Updating...' : selectedLead.status === 'bot' ? 'Take over' : 'Return to bot'}
+                </button>
+              </div>
+            </>
           ) : (
             <div className="hot-leads-detail-empty">
               <HiOutlineFire size={40} className="empty-icon" />

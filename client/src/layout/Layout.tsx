@@ -56,6 +56,7 @@ type LayoutProps = {
 
 export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarHidden, setSidebarHidden] = useState(false)
   const [activeSection, setActiveSection] = useState<PrimarySection>('dashboard')
   const [activeSubMenu, setActiveSubMenu] = useState<string>(DEFAULT_SUBMENU.dashboard)
 
@@ -129,7 +130,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className="dashboard-container">
+    <div className={`dashboard-container ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
       <IconRail activeSection={activeSection} onSelect={setActiveSection} onLogout={onLogout} />
       <Sidebar
         open={sidebarOpen}
@@ -142,6 +143,8 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
         <TopNavBar
           onMenuClick={() => setSidebarOpen(true)}
           activeSectionLabel={PRIMARY_SECTION_LABELS[activeSection]}
+          onSidebarToggle={() => setSidebarHidden((prev) => !prev)}
+          isSidebarHidden={sidebarHidden}
         />
         <div className="main-content-scrollable">{renderContent()}</div>
       </main>

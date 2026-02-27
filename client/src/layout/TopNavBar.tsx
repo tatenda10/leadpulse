@@ -6,9 +6,16 @@ import './TopNavBar.css'
 type TopNavBarProps = {
   onMenuClick: () => void
   activeSectionLabel: string
+  onSidebarToggle: () => void
+  isSidebarHidden: boolean
 }
 
-export const TopNavBar: React.FC<TopNavBarProps> = ({ onMenuClick, activeSectionLabel }) => {
+export const TopNavBar: React.FC<TopNavBarProps> = ({
+  onMenuClick,
+  activeSectionLabel,
+  onSidebarToggle,
+  isSidebarHidden,
+}) => {
   return (
     <header className="top-nav">
       <div className="top-nav-left">
@@ -38,6 +45,9 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ onMenuClick, activeSection
         </div>
       </div>
       <div className="top-nav-right">
+        <button type="button" className="sidebar-toggle-button" onClick={onSidebarToggle}>
+          {isSidebarHidden ? 'Show Sidebar' : 'Hide Sidebar'}
+        </button>
         <div className="live-chats-pill">
           <span className="live-dot" />
           <span className="live-text">3 live chats</span>

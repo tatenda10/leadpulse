@@ -223,6 +223,22 @@
   min-height: 72px;
 }
 
+.bot-status-save-btn {
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: var(--text-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.bot-status-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .bot-stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

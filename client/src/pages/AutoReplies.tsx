@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineReply, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
 import './AutoReplies.css'
 import './ContactSegments.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
 type AutoReplyRule = {
   id: string
@@ -11,48 +13,98 @@ type AutoReplyRule = {
   matchType: 'contains' | 'exact'
 }
 
-const MOCK_RULES: AutoReplyRule[] = [
-  { id: '1', trigger: 'price, cost, how much', reply: 'Thanks for asking! Our prices start from $99. Would you like me to send you our full catalogue?', enabled: true, matchType: 'contains' },
-  { id: '2', trigger: 'hello, hi', reply: 'Hello! Welcome to LeadPulse. How can we help you today?', enabled: true, matchType: 'contains' },
-  { id: '3', trigger: 'catalogue', reply: 'Here\'s our product catalogue: [link]. Let me know if you have any questions!', enabled: true, matchType: 'contains' },
-  { id: '4', trigger: 'contact', reply: 'You can reach us on WhatsApp or call +263 77 123 4567. We\'re here Mon–Fri, 8am–5pm.', enabled: false, matchType: 'contains' },
-]
+type AutoRepliesResponse = {
+  rules: AutoReplyRule[]
+}
+
+type AutoReplyResponse = {
+  rule: AutoReplyRule
+}
 
 export const AutoReplies: React.FC = () => {
-  const [rules, setRules] = useState<AutoReplyRule[]>(MOCK_RULES)
+  const { token } = useAuth()
+  const [rules, setRules] = useState<AutoReplyRule[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleRule = (id: string) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
-    )
-  }
-
-  const deleteRule = (id: string) => {
-    setRules((prev) => prev.filter((r) => r.id !== id))
-    setEditingId(null)
-  }
-
-  const saveRule = (id: string, trigger: string, reply: string, matchType: 'contains' | 'exact') => {
-    setRules((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, trigger, reply, matchType } : r
-      )
-    )
-    setEditingId(null)
-  }
-
-  const addRule = (trigger: string, reply: string, matchType: 'contains' | 'exact') => {
-    const newRule: AutoReplyRule = {
-      id: String(Date.now()),
-      trigger,
-      reply,
-      enabled: true,
-      matchType,
+  useEffect(() => {
+    let cancelled = false
+    async function loadRules() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<AutoRepliesResponse>('/settings/auto-replies', { token })
+        if (!cancelled) setRules(response.rules)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load auto replies')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    setRules((prev) => [newRule, ...prev])
-    setIsAdding(false)
+    void loadRules()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const toggleRule = async (id: string) => {
+    if (!token) return
+    const current = rules.find((r) => r.id === id)
+    if (!current) return
+    try {
+      const response = await apiRequest<AutoReplyResponse>(`/settings/auto-replies/${id}`, {
+        method: 'PATCH',
+        body: { enabled: !current.enabled },
+        token,
+      })
+      setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update auto reply')
+    }
+  }
+
+  const deleteRule = async (id: string) => {
+    if (!token) return
+    try {
+      await apiRequest(`/settings/auto-replies/${id}`, { method: 'DELETE', token })
+      setRules((prev) => prev.filter((r) => r.id !== id))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete auto reply')
+    }
+  }
+
+  const saveRule = async (id: string, trigger: string, reply: string, matchType: 'contains' | 'exact') => {
+    if (!token) return
+    try {
+      const response = await apiRequest<AutoReplyResponse>(`/settings/auto-replies/${id}`, {
+        method: 'PATCH',
+        body: { trigger, reply, matchType },
+        token,
+      })
+      setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save auto reply')
+    }
+  }
+
+  const addRule = async (trigger: string, reply: string, matchType: 'contains' | 'exact') => {
+    if (!token) return
+    try {
+      const response = await apiRequest<AutoReplyResponse>('/settings/auto-replies', {
+        method: 'POST',
+        body: { trigger, reply, matchType, enabled: true },
+        token,
+      })
+      setRules((prev) => [response.rule, ...prev])
+      setIsAdding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add auto reply')
+    }
   }
 
   return (
@@ -67,39 +119,41 @@ export const AutoReplies: React.FC = () => {
             Configure automatic replies when customers send specific keywords or phrases.
           </p>
         </div>
-        <button
-          type="button"
-          className="auto-replies-add-btn"
-          onClick={() => setIsAdding(true)}
-        >
+        <button type="button" className="auto-replies-add-btn" onClick={() => setIsAdding(true)}>
           <HiOutlinePlus size={18} />
           Add rule
         </button>
       </header>
 
+      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
       {isAdding && (
         <AddAutoReplyModal
           onClose={() => setIsAdding(false)}
-          onSave={(trigger, reply, matchType) => addRule(trigger, reply, matchType)}
+          onSave={(trigger, reply, matchType) => void addRule(trigger, reply, matchType)}
         />
       )}
 
-      <div className="auto-replies-list">
-        {rules.map((rule) => (
-          <AutoReplyCard
-            key={rule.id}
-            rule={rule}
-            isEditing={editingId === rule.id}
-            onToggle={() => toggleRule(rule.id)}
-            onEdit={() => setEditingId(rule.id)}
-            onDelete={() => deleteRule(rule.id)}
-            onSave={(trigger, reply, matchType) => saveRule(rule.id, trigger, reply, matchType)}
-            onCancel={() => setEditingId(null)}
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="auto-replies-empty"><p>Loading auto replies...</p></div>
+      ) : (
+        <div className="auto-replies-list">
+          {rules.map((rule) => (
+            <AutoReplyCard
+              key={rule.id}
+              rule={rule}
+              isEditing={editingId === rule.id}
+              onToggle={() => void toggleRule(rule.id)}
+              onEdit={() => setEditingId(rule.id)}
+              onDelete={() => void deleteRule(rule.id)}
+              onSave={(trigger, reply, matchType) => void saveRule(rule.id, trigger, reply, matchType)}
+              onCancel={() => setEditingId(null)}
+            />
+          ))}
+        </div>
+      )}
 
-      {rules.length === 0 && !isAdding && (
+      {rules.length === 0 && !isAdding && !loading && (
         <div className="auto-replies-empty">
           <HiOutlineReply size={48} className="empty-icon" />
           <p>No auto reply rules yet</p>
@@ -235,11 +289,7 @@ const AutoReplyCard: React.FC<AutoReplyCardProps> = ({
         {!isNew && (
           <>
             <label className="auto-reply-toggle">
-              <input
-                type="checkbox"
-                checked={rule.enabled}
-                onChange={onToggle ?? (() => {})}
-              />
+              <input type="checkbox" checked={rule.enabled} onChange={onToggle ?? (() => {})} />
               <span className="toggle-slider" />
             </label>
             <span className="auto-reply-status">{rule.enabled ? 'Active' : 'Paused'}</span>

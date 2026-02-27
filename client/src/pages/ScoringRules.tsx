@@ -1,7 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { HiOutlineCalculator, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
 import './ScoringRules.css'
 import './ContactSegments.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
 
 type ConditionType = 'keyword' | 'response_speed' | 'message_count' | 'asked_callback'
 
@@ -13,13 +15,8 @@ type ScoringRule = {
   enabled: boolean
 }
 
-const MOCK_RULES: ScoringRule[] = [
-  { id: '1', conditionType: 'keyword', value: 'price, cost, how much, buy, order', points: 15, enabled: true },
-  { id: '2', conditionType: 'keyword', value: 'catalogue, brochure', points: 8, enabled: true },
-  { id: '3', conditionType: 'response_speed', value: '5', points: 10, enabled: true },
-  { id: '4', conditionType: 'message_count', value: '5', points: 5, enabled: true },
-  { id: '5', conditionType: 'asked_callback', value: '', points: 20, enabled: true },
-]
+type ScoringRulesResponse = { rules: ScoringRule[] }
+type ScoringRuleResponse = { rule: ScoringRule }
 
 const CONDITION_HINTS: Record<ConditionType, string> = {
   keyword: 'Comma-separated keywords',
@@ -29,40 +26,88 @@ const CONDITION_HINTS: Record<ConditionType, string> = {
 }
 
 export const ScoringRules: React.FC = () => {
-  const [rules, setRules] = useState<ScoringRule[]>(MOCK_RULES)
+  const { token } = useAuth()
+  const [rules, setRules] = useState<ScoringRule[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleRule = (id: string) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
-    )
-  }
-
-  const deleteRule = (id: string) => {
-    setRules((prev) => prev.filter((r) => r.id !== id))
-    setEditingId(null)
-  }
-
-  const saveRule = (id: string, conditionType: ConditionType, value: string, points: number) => {
-    setRules((prev) =>
-      prev.map((r) =>
-        r.id === id ? { ...r, conditionType, value, points } : r
-      )
-    )
-    setEditingId(null)
-  }
-
-  const addRule = (conditionType: ConditionType, value: string, points: number) => {
-    const newRule: ScoringRule = {
-      id: String(Date.now()),
-      conditionType,
-      value,
-      points,
-      enabled: true,
+  useEffect(() => {
+    let cancelled = false
+    async function loadRules() {
+      if (!token) return
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await apiRequest<ScoringRulesResponse>('/settings/scoring-rules', { token })
+        if (!cancelled) setRules(response.rules)
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load scoring rules')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-    setRules((prev) => [newRule, ...prev])
-    setIsAdding(false)
+    void loadRules()
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  const toggleRule = async (id: string) => {
+    const current = rules.find((r) => r.id === id)
+    if (!current || !token) return
+    try {
+      const response = await apiRequest<ScoringRuleResponse>(`/settings/scoring-rules/${id}`, {
+        method: 'PATCH',
+        body: { enabled: !current.enabled },
+        token,
+      })
+      setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update rule')
+    }
+  }
+
+  const deleteRule = async (id: string) => {
+    if (!token) return
+    try {
+      await apiRequest(`/settings/scoring-rules/${id}`, { method: 'DELETE', token })
+      setRules((prev) => prev.filter((r) => r.id !== id))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete rule')
+    }
+  }
+
+  const saveRule = async (id: string, conditionType: ConditionType, value: string, points: number) => {
+    if (!token) return
+    try {
+      const response = await apiRequest<ScoringRuleResponse>(`/settings/scoring-rules/${id}`, {
+        method: 'PATCH',
+        body: { conditionType, value, points },
+        token,
+      })
+      setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
+      setEditingId(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save rule')
+    }
+  }
+
+  const addRule = async (conditionType: ConditionType, value: string, points: number) => {
+    if (!token) return
+    try {
+      const response = await apiRequest<ScoringRuleResponse>('/settings/scoring-rules', {
+        method: 'POST',
+        body: { conditionType, value, points, enabled: true },
+        token,
+      })
+      setRules((prev) => [response.rule, ...prev])
+      setIsAdding(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add rule')
+    }
   }
 
   return (
@@ -77,39 +122,41 @@ export const ScoringRules: React.FC = () => {
             Define how lead scores are calculated. Points add up to identify hot leads.
           </p>
         </div>
-        <button
-          type="button"
-          className="scoring-rules-add-btn"
-          onClick={() => setIsAdding(true)}
-        >
+        <button type="button" className="scoring-rules-add-btn" onClick={() => setIsAdding(true)}>
           <HiOutlinePlus size={18} />
           Add rule
         </button>
       </header>
 
+      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
       {isAdding && (
         <AddRuleModal
           onClose={() => setIsAdding(false)}
-          onSave={(conditionType, value, points) => addRule(conditionType, value, points)}
+          onSave={(conditionType, value, points) => void addRule(conditionType, value, points)}
         />
       )}
 
-      <div className="scoring-rules-list">
-        {rules.map((rule) => (
-          <ScoringRuleCard
-            key={rule.id}
-            rule={rule}
-            isEditing={editingId === rule.id}
-            onToggle={() => toggleRule(rule.id)}
-            onEdit={() => setEditingId(rule.id)}
-            onDelete={() => deleteRule(rule.id)}
-            onSave={(conditionType, value, points) => saveRule(rule.id, conditionType, value, points)}
-            onCancel={() => setEditingId(null)}
-          />
-        ))}
-      </div>
+      {loading ? (
+        <div className="scoring-rules-empty"><p>Loading rules...</p></div>
+      ) : (
+        <div className="scoring-rules-list">
+          {rules.map((rule) => (
+            <ScoringRuleCard
+              key={rule.id}
+              rule={rule}
+              isEditing={editingId === rule.id}
+              onToggle={() => void toggleRule(rule.id)}
+              onEdit={() => setEditingId(rule.id)}
+              onDelete={() => void deleteRule(rule.id)}
+              onSave={(conditionType, value, points) => void saveRule(rule.id, conditionType, value, points)}
+              onCancel={() => setEditingId(null)}
+            />
+          ))}
+        </div>
+      )}
 
-      {rules.length === 0 && !isAdding && (
+      {rules.length === 0 && !isAdding && !loading && (
         <div className="scoring-rules-empty">
           <HiOutlineCalculator size={48} className="empty-icon" />
           <p>No scoring rules yet</p>
@@ -137,8 +184,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ onClose, onSave }) => {
   const needsValue = conditionType !== 'asked_callback'
   const isMessageCount = conditionType === 'message_count'
   const pts = parseInt(points, 10)
-  const canSave =
-    !isNaN(pts) && pts >= 0 && (!needsValue || value.trim())
+  const canSave = !isNaN(pts) && pts >= 0 && (!needsValue || value.trim())
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,11 +205,7 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ onClose, onSave }) => {
         <form id="add-rule-form" onSubmit={handleSubmit} className="segment-modal-body">
           <div className="segment-modal-field">
             <label htmlFor="rule-condition-type">Condition type</label>
-            <select
-              id="rule-condition-type"
-              value={conditionType}
-              onChange={(e) => setConditionType(e.target.value as ConditionType)}
-            >
+            <select id="rule-condition-type" value={conditionType} onChange={(e) => setConditionType(e.target.value as ConditionType)}>
               <option value="keyword">Keyword in message</option>
               <option value="response_speed">Replied within (minutes)</option>
               <option value="message_count">Sent 5+ messages</option>
@@ -187,28 +229,12 @@ const AddRuleModal: React.FC<AddRuleModalProps> = ({ onClose, onSave }) => {
           )}
           <div className="segment-modal-field">
             <label htmlFor="rule-points">Points <span className="segment-field-required">*</span></label>
-            <input
-              id="rule-points"
-              type="number"
-              min={0}
-              value={points}
-              onChange={(e) => setPoints(e.target.value)}
-              placeholder="10"
-            />
+            <input id="rule-points" type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} placeholder="10" />
           </div>
         </form>
         <footer className="segment-modal-footer">
-          <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            form="add-rule-form"
-            className="segment-modal-btn segment-modal-btn-primary"
-            disabled={!canSave}
-          >
-            Add rule
-          </button>
+          <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="submit" form="add-rule-form" className="segment-modal-btn segment-modal-btn-primary" disabled={!canSave}>Add rule</button>
         </footer>
       </div>
     </>
@@ -226,16 +252,7 @@ type ScoringRuleCardProps = {
   onCancel?: () => void
 }
 
-const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
-  rule,
-  isNew,
-  isEditing,
-  onToggle,
-  onEdit,
-  onDelete,
-  onSave,
-  onCancel,
-}) => {
+const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({ rule, isNew, isEditing, onToggle, onEdit, onDelete, onSave, onCancel }) => {
   const [conditionType, setConditionType] = useState<ConditionType>(rule.conditionType)
   const [value, setValue] = useState(rule.value)
   const [points, setPoints] = useState(String(rule.points))
@@ -251,21 +268,18 @@ const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
     }
   }
 
-  const canSave =
-    !isNaN(parseInt(points, 10)) &&
-    parseInt(points, 10) >= 0 &&
-    (!needsValue || value.trim())
+  const canSave = !isNaN(parseInt(points, 10)) && parseInt(points, 10) >= 0 && (!needsValue || value.trim())
 
   const formatPreview = () => {
     switch (rule.conditionType) {
       case 'keyword':
         return rule.value
       case 'response_speed':
-        return `Replied within ${rule.value} min → +${rule.points}`
+        return `Replied within ${rule.value} min -> +${rule.points}`
       case 'message_count':
-        return `Sent ${rule.value || '5'}+ messages → +${rule.points}`
+        return `Sent ${rule.value || '5'}+ messages -> +${rule.points}`
       case 'asked_callback':
-        return `Asked for callback → +${rule.points}`
+        return `Asked for callback -> +${rule.points}`
       default:
         return rule.value || `+${rule.points} pts`
     }
@@ -277,11 +291,7 @@ const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
         {!isNew && (
           <>
             <label className="scoring-rule-toggle">
-              <input
-                type="checkbox"
-                checked={rule.enabled}
-                onChange={onToggle ?? (() => {})}
-              />
+              <input type="checkbox" checked={rule.enabled} onChange={onToggle ?? (() => {})} />
               <span className="toggle-slider" />
             </label>
             <span className="scoring-rule-status">{rule.enabled ? 'Active' : 'Paused'}</span>
@@ -291,12 +301,8 @@ const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
         {!canEdit && (
           <div className="scoring-rule-actions">
             <span className="scoring-rule-points">+{rule.points} pts</span>
-            <button type="button" className="icon-btn" onClick={onEdit} title="Edit">
-              <HiOutlinePencil size={16} />
-            </button>
-            <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete">
-              <HiOutlineTrash size={16} />
-            </button>
+            <button type="button" className="icon-btn" onClick={onEdit} title="Edit"><HiOutlinePencil size={16} /></button>
+            <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete"><HiOutlineTrash size={16} /></button>
           </div>
         )}
       </div>
@@ -306,10 +312,7 @@ const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
           <>
             <div className="scoring-rule-field">
               <label>Condition type</label>
-              <select
-                value={conditionType}
-                onChange={(e) => setConditionType(e.target.value as ConditionType)}
-              >
+              <select value={conditionType} onChange={(e) => setConditionType(e.target.value as ConditionType)}>
                 <option value="keyword">Keyword in message</option>
                 <option value="response_speed">Replied within (minutes)</option>
                 <option value="message_count">Sent 5+ messages</option>
@@ -318,39 +321,17 @@ const ScoringRuleCard: React.FC<ScoringRuleCardProps> = ({
             </div>
             {needsValue && (
               <div className="scoring-rule-field">
-                <label>
-                  {conditionType === 'keyword' ? 'Keywords (comma-separated)' : 'Value'}
-                </label>
-                <input
-                  type={isMessageCount ? 'number' : 'text'}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder={CONDITION_HINTS[conditionType]}
-                />
+                <label>{conditionType === 'keyword' ? 'Keywords (comma-separated)' : 'Value'}</label>
+                <input type={isMessageCount ? 'number' : 'text'} value={value} onChange={(e) => setValue(e.target.value)} placeholder={CONDITION_HINTS[conditionType]} />
               </div>
             )}
             <div className="scoring-rule-field">
               <label>Points</label>
-              <input
-                type="number"
-                min={0}
-                value={points}
-                onChange={(e) => setPoints(e.target.value)}
-                placeholder="10"
-              />
+              <input type="number" min={0} value={points} onChange={(e) => setPoints(e.target.value)} placeholder="10" />
             </div>
             <div className="scoring-rule-card-footer">
-              <button type="button" className="btn-secondary" onClick={onCancel}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleSave}
-                disabled={!canSave}
-              >
-                {isNew ? 'Add rule' : 'Save'}
-              </button>
+              <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+              <button type="button" className="btn-primary" onClick={handleSave} disabled={!canSave}>{isNew ? 'Add rule' : 'Save'}</button>
             </div>
           </>
         ) : (

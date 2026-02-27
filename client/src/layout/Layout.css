@@ -54,6 +54,10 @@ body {
   transition: margin-left 0.3s ease;
 }
 
+.dashboard-container.sidebar-hidden .main-content {
+  margin-left: var(--icon-rail-width);
+}
+
 .main-content-scrollable {
   flex: 1;
   overflow-y: auto;
@@ -71,6 +75,10 @@ body {
 
 @media (max-width: 1023px) {
   .main-content {
+    margin-left: 0;
+  }
+
+  .dashboard-container.sidebar-hidden .main-content {
     margin-left: 0;
   }
 }
