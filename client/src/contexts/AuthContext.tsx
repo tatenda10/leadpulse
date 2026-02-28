@@ -23,6 +23,7 @@ type AuthContextValue = {
 
 const AUTH_TOKEN_KEY = 'leadpulse_auth_token';
 const AUTH_USER_KEY = 'leadpulse_auth_user';
+const LAST_LOCATION_KEY = 'leadpulse_last_location';
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -50,6 +51,8 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     setUser(response.user);
     localStorage.setItem(AUTH_TOKEN_KEY, response.token);
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
+    // On login always start on dashboard by clearing any saved location
+    localStorage.removeItem(LAST_LOCATION_KEY);
   };
 
   const logout = (): void => {
@@ -57,6 +60,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     setUser(null);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
+    localStorage.removeItem(LAST_LOCATION_KEY);
   };
 
   const value = useMemo<AuthContextValue>(

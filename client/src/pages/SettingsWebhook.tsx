@@ -6,6 +6,11 @@ export const SettingsWebhook: React.FC = () => {
   const [url, setUrl] = useState('https://api.leadpulse.com/webhook/whatsapp')
   const [secret, setSecret] = useState('')
   const [enabled, setEnabled] = useState(true)
+  const [saved, setSaved] = useState(true)
+
+  const handleSave = () => {
+    setSaved(true)
+  }
 
   return (
     <div className="settings-page">
@@ -20,19 +25,21 @@ export const SettingsWebhook: React.FC = () => {
         <div className="settings-toggle-row">
           <span className="settings-toggle-label">Webhook enabled</span>
           <label className="settings-toggle">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); setSaved(false) }} />
             <span className="toggle-slider" />
           </label>
         </div>
         <div className="settings-field">
           <label>Webhook URL</label>
-          <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input type="url" value={url} onChange={(e) => { setUrl(e.target.value); setSaved(false) }} />
         </div>
         <div className="settings-field">
           <label>Signing secret (optional)</label>
-          <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Verify webhook signatures" />
+          <input type="password" value={secret} onChange={(e) => { setSecret(e.target.value); setSaved(false) }} placeholder="Verify webhook signatures" />
         </div>
-        <button type="button" className="settings-save-btn">Save webhook</button>
+        <button type="button" className="settings-save-btn" onClick={handleSave} disabled={saved}>
+          {saved ? 'Saved' : 'Save webhook'}
+        </button>
       </div>
     </div>
   )

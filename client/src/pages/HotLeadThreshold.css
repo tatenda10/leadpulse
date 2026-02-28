@@ -41,7 +41,7 @@
 
 .threshold-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -170,10 +170,75 @@
 
 .threshold-preview-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Toast — top right, matches other settings pages */
+.threshold-toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: threshold-toast-in 0.25s ease;
+}
+
+@keyframes threshold-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.threshold-toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.threshold-toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.threshold-toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.threshold-toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.threshold-toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .preview-title {

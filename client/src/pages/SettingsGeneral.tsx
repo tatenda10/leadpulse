@@ -1,16 +1,33 @@
-import React, { useState } from 'react'
-import { HiOutlineCog } from 'react-icons/hi'
+import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { HiOutlineCog, HiOutlineX } from 'react-icons/hi'
 import './Settings.css'
+
+type ToastState = { message: string; type: 'success' | 'error' } | null
 
 export const SettingsGeneral: React.FC = () => {
   const [businessName, setBusinessName] = useState('LeadPulse')
   const [timezone, setTimezone] = useState('Africa/Harare')
   const [language, setLanguage] = useState('en')
+  const [saved, setSaved] = useState(true)
+  const [toast, setToast] = useState<ToastState>(null)
+
+  const handleSave = () => {
+    setToast({ type: 'success', message: 'Changes saved' })
+    setSaved(true)
+  }
 
   return (
     <div className="settings-page">
+      {toast && (
+        <SettingsGeneralToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       <header className="settings-header">
-<h1 className="settings-title">
+        <h1 className="settings-title">
           <HiOutlineCog size={24} />
           General
         </h1>
@@ -24,7 +41,10 @@ export const SettingsGeneral: React.FC = () => {
             <input
               type="text"
               value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
+              onChange={(e) => {
+                setBusinessName(e.target.value)
+                setSaved(false)
+              }}
             />
           </div>
         </div>
@@ -32,7 +52,7 @@ export const SettingsGeneral: React.FC = () => {
           <h3 className="settings-section-title">Regional</h3>
           <div className="settings-field">
             <label>Timezone</label>
-            <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+            <select value={timezone} onChange={(e) => { setTimezone(e.target.value); setSaved(false) }}>
               <option value="Africa/Harare">Africa/Harare</option>
               <option value="Africa/Johannesburg">Africa/Johannesburg</option>
               <option value="UTC">UTC</option>
@@ -40,14 +60,39 @@ export const SettingsGeneral: React.FC = () => {
           </div>
           <div className="settings-field">
             <label>Language</label>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+            <select value={language} onChange={(e) => { setLanguage(e.target.value); setSaved(false) }}>
               <option value="en">English</option>
               <option value="fr">French</option>
             </select>
           </div>
         </div>
-        <button type="button" className="settings-save-btn">Save changes</button>
+        <button type="button" className="settings-save-btn" onClick={handleSave} disabled={saved}>
+          {saved ? 'Saved' : 'Save changes'}
+        </button>
       </div>
     </div>
+  )
+}
+
+type SettingsGeneralToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const SettingsGeneralToast: React.FC<SettingsGeneralToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`settings-general-toast settings-general-toast-${type}`} role="status">
+      <span className="settings-general-toast-message">{message}</span>
+      <button type="button" className="settings-general-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }

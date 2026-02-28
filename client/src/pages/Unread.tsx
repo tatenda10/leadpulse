@@ -1,7 +1,10 @@
-import React, { useState } from 'react'
-import { HiOutlineFire, HiOutlineChip, HiOutlineUser, HiOutlineChat, HiOutlineInbox } from 'react-icons/hi'
+import React, { useEffect, useState } from 'react'
+import { HiOutlineFire, HiOutlineChip, HiOutlineUser, HiOutlineInbox } from 'react-icons/hi'
 import './AllChats.css'
 import './Unread.css'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
+import { useUnreadCount } from '../contexts/UnreadCountContext'
 
 type Chat = {
   id: string
@@ -14,48 +17,138 @@ type Chat = {
   isHot: boolean
 }
 
-const MOCK_CHATS: Chat[] = [
-  { id: '1', contact: 'John Mbanga', phone: '+263 77 123 4567', lastMessage: 'What is your best price?', time: '2m', unread: 2, status: 'human', isHot: true },
-  { id: '2', contact: 'Sarah Ncube', phone: '+263 71 987 6543', lastMessage: 'Thanks for the info', time: '5m', unread: 0, status: 'bot', isHot: false },
-  { id: '3', contact: '+263 78 555 1234', phone: '+263 78 555 1234', lastMessage: 'I want to buy today', time: '8m', unread: 1, status: 'bot', isHot: true },
-  { id: '4', contact: 'Mike Dube', phone: '+263 77 111 2222', lastMessage: 'Can I get a callback?', time: '12m', unread: 0, status: 'human', isHot: false },
-  { id: '5', contact: 'Grace Mutasa', phone: '+263 71 333 4444', lastMessage: 'Send me the catalogue', time: '18m', unread: 3, status: 'bot', isHot: true },
-]
+type ConversationsResponse = {
+  conversations: Array<{
+    id: string
+    contact: string
+    phone: string
+    lastMessage: string
+    lastMessageAt: string | null
+    unread: number
+    status: 'bot' | 'human'
+    isHot: boolean
+  }>
+}
 
-const UNREAD_CHATS = MOCK_CHATS.filter((c) => c.unread > 0)
+function formatRelativeTime(value: string | null): string {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
 
-const MOCK_MESSAGES = [
-  { id: 1, sender: 'customer', text: 'Hi, I saw your ad on Facebook', time: '10:32' },
-  { id: 2, sender: 'bot', text: 'Hello! Thanks for reaching out. How can we help you today?', time: '10:32' },
-  { id: 3, sender: 'customer', text: 'What is your best price?', time: '10:34' },
-  { id: 4, sender: 'agent', text: 'Hi John, I\'d be happy to help. Let me share our current offers...', time: '10:35' },
-]
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+
+  if (diffMinutes < 1) return 'now'
+  if (diffMinutes < 60) return `${diffMinutes}m`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return `${diffDays}d`
+
+  return date.toLocaleDateString()
+}
 
 export const Unread: React.FC = () => {
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(UNREAD_CHATS[0] ?? null)
-  const [messageInput, setMessageInput] = useState('')
+  const { token } = useAuth()
+  const { setUnreadCount } = useUnreadCount()
+  const [unreadChats, setUnreadChats] = useState<Chat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadUnread() {
+      if (!token) {
+        setUnreadChats([])
+        setUnreadCount(0)
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const res = await apiRequest<ConversationsResponse>('/conversations', { token })
+        if (cancelled) return
+
+        const nextUnread: Chat[] =
+          res.conversations
+            ?.filter((c) => (c.unread ?? 0) > 0)
+            .map((c) => ({
+              id: c.id,
+              contact: c.contact,
+              phone: c.phone,
+              lastMessage: c.lastMessage || 'No messages yet',
+              time: formatRelativeTime(c.lastMessageAt),
+              unread: c.unread,
+              status: c.status,
+              isHot: c.isHot,
+            })) ?? []
+
+        setUnreadChats(nextUnread)
+        const totalUnread =
+          res.conversations?.reduce((sum, c) => sum + (c.unread ?? 0), 0) ?? 0
+        setUnreadCount(totalUnread)
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Failed to load unread conversations')
+          setUnreadChats([])
+          setUnreadCount(0)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadUnread()
+
+    return () => {
+      cancelled = true
+    }
+  }, [token, setUnreadCount])
+
+  const handleMarkAllRead = () => {
+    setUnreadChats([])
+    setUnreadCount(0)
+  }
 
   return (
-    <div className="unread-chats all-chats">
-      <aside className="chat-list">
+    <div className="unread-page">
+      <div className="unread-list">
         <div className="chat-list-header">
           <span className="chat-list-title">Unread</span>
-          <span className="chat-list-count">{UNREAD_CHATS.length}</span>
+          {unreadChats.length > 0 && (
+            <button type="button" className="unread-mark-btn" onClick={handleMarkAllRead}>
+              Mark all as read
+            </button>
+          )}
         </div>
         <div className="chat-list-items">
-          {UNREAD_CHATS.length === 0 ? (
+          {loading ? (
+            <div className="unread-empty-list">
+              <p>Loading unread conversations...</p>
+            </div>
+          ) : error ? (
+            <div className="unread-empty-list">
+              <p>{error}</p>
+            </div>
+          ) : unreadChats.length === 0 ? (
             <div className="unread-empty-list">
               <HiOutlineInbox size={40} className="empty-icon" />
               <p>No unread conversations</p>
               <span className="unread-empty-hint">All caught up!</span>
             </div>
           ) : (
-            UNREAD_CHATS.map((chat) => (
-              <button
+            unreadChats.map((chat) => (
+              <div
                 key={chat.id}
-                type="button"
-                className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''} ${chat.unread ? 'unread' : ''}`}
-                onClick={() => setSelectedChat(chat)}
+                className="chat-item unread"
               >
                 <div className="chat-item-avatar">
                   {chat.contact.charAt(0)}
@@ -81,87 +174,11 @@ export const Unread: React.FC = () => {
                     </span>
                   </div>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>
-      </aside>
-      <section className="chat-window">
-        {selectedChat ? (
-          <>
-            <div className="chat-window-header">
-              <div className="chat-window-contact">
-                <div className="chat-window-avatar">{selectedChat.contact.charAt(0)}</div>
-                <div>
-                  <div className="chat-window-name">{selectedChat.contact}</div>
-                  <div className="chat-window-phone">{selectedChat.phone}</div>
-                </div>
-              </div>
-              <button type="button" className="takeover-btn">
-                {selectedChat.status === 'bot' ? 'Take over' : 'Return to bot'}
-              </button>
-            </div>
-            <div className="chat-messages">
-              {MOCK_MESSAGES.map((msg) => (
-                <div key={msg.id} className={`chat-message ${msg.sender}`}>
-                  <div className="chat-bubble">
-                    <span className="chat-bubble-text">{msg.text}</span>
-                    <span className="chat-bubble-time">{msg.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="chat-input-wrap">
-              <input
-                type="text"
-                className="chat-input"
-                placeholder="Type a message..."
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-              />
-              <button type="button" className="chat-send-btn">Send</button>
-            </div>
-          </>
-        ) : (
-          <div className="chat-window-empty">
-            <HiOutlineChat size={48} className="empty-icon" />
-            <p>{UNREAD_CHATS.length === 0 ? 'No unread chats' : 'Select a conversation'}</p>
-          </div>
-        )}
-      </section>
-      <aside className="chat-lead-panel">
-        {selectedChat ? (
-          <>
-            <div className="lead-panel-header">Lead info</div>
-            <div className="lead-panel-section">
-              <div className="lead-score-row">
-                <span className="lead-label">Score</span>
-                <span className={`lead-score ${selectedChat.isHot ? 'hot' : ''}`}>
-                  {selectedChat.isHot ? '92' : '45'}
-                </span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Status</span>
-                <span className="lead-value">{selectedChat.status === 'bot' ? 'Bot handling' : 'Human handling'}</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Source</span>
-                <span className="lead-value">Facebook Ads</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Started</span>
-                <span className="lead-value">Today, 10:30</span>
-              </div>
-            </div>
-            <div className="lead-panel-section">
-              <div className="lead-label">Notes</div>
-              <textarea className="lead-notes" placeholder="Add notes..." rows={3} />
-            </div>
-          </>
-        ) : (
-          <div className="lead-panel-empty">Select a chat to view lead details</div>
-        )}
-      </aside>
+      </div>
     </div>
   )
 }

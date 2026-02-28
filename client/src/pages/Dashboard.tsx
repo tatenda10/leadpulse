@@ -78,12 +78,44 @@ export const Dashboard: React.FC = () => {
     ]
   }, [data])
 
-  if (loading) return <div className="dashboard-overview"><div className="chart-card">Loading overview...</div></div>
+  if (loading)
+    return (
+      <div className="dashboard-overview">
+        <div className="dashboard-header">
+          <div className="skeleton dashboard-title-skeleton" />
+          <div className="skeleton dashboard-desc-skeleton" />
+        </div>
+        <div className="dashboard-cards">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="dashboard-card dashboard-card-skeleton">
+              <div className="skeleton dashboard-card-icon-skeleton" />
+              <div className="skeleton dashboard-card-label-skeleton" />
+              <div className="skeleton dashboard-card-value-skeleton" />
+            </div>
+          ))}
+        </div>
+        <div className="dashboard-charts">
+          <div className="chart-card chart-wide dashboard-chart-skeleton skeleton" />
+          <div className="chart-card dashboard-chart-skeleton skeleton" />
+        </div>
+        <div className="dashboard-charts">
+          <div className="chart-card chart-wide dashboard-chart-skeleton skeleton" />
+          <div className="chart-card dashboard-chart-skeleton skeleton" />
+        </div>
+        <div className="dashboard-charts">
+          <div className="chart-card chart-full dashboard-chart-skeleton skeleton" />
+        </div>
+      </div>
+    )
   if (error) return <div className="dashboard-overview"><div className="chart-card">{error}</div></div>
   if (!data) return <div className="dashboard-overview"><div className="chart-card">No data available</div></div>
 
   return (
     <div className="dashboard-overview">
+      <div className="dashboard-header">
+        <h1 className="dashboard-title">Dashboard</h1>
+        <p className="dashboard-desc">Overview of your conversations, leads, and bot performance.</p>
+      </div>
       <div className="dashboard-cards">
         {kpiCards.map((card) => {
           const Icon = card.icon

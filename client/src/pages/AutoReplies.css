@@ -1,29 +1,32 @@
+/* Page layout: fills available space, container takes the rest */
 .auto-replies-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .auto-replies-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
+}
+
+.auto-replies-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .auto-replies-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-1) 0;
+  margin: 0;
   font-size: 20px;
   font-weight: 800;
   color: var(--text-primary);
-}
-
-.auto-replies-title svg {
-  color: var(--text-accent);
 }
 
 .auto-replies-desc {
@@ -31,6 +34,25 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+.auto-replies-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  background: var(--card-bg);
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  padding: var(--space-3);
+}
+
+.auto-replies-error {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .auto-replies-add-btn {
@@ -52,6 +74,9 @@
 }
 
 .auto-replies-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -59,7 +84,7 @@
 
 .auto-reply-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -253,6 +278,7 @@
 
 .auto-replies-empty {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -260,11 +286,12 @@
   gap: var(--space-2);
   padding: var(--space-5);
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px dashed var(--border-color);
   color: var(--text-light);
   font-size: 14px;
   font-weight: 600;
+  text-align: center;
 }
 
 .auto-replies-empty .empty-icon {
@@ -296,10 +323,125 @@
   background: #6d28d9;
 }
 
+/* Add rule modal: center in viewport via fixed flex wrapper (avoids ancestor containing-block issues) */
+.autoreply-modal-center {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.autoreply-modal-center .segment-modal {
+  pointer-events: auto;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+/* Delete confirmation modal */
+.delete-confirm-modal {
+  width: min(400px, calc(100vw - var(--space-4)));
+}
+
+.delete-confirm-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.segment-modal-btn-danger {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+}
+
+.segment-modal-btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Toast — top right */
+.toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: toast-in 0.25s ease;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* Add rule modal uses segment modal classes (ContactSegments.css) — match segment input emphasis */
 #auto-reply-trigger,
 #auto-reply-match-type,
-#auto-reply-message {
+#auto-reply-message,
+#edit-auto-reply-trigger,
+#edit-auto-reply-match-type,
+#edit-auto-reply-message {
   font-weight: 600;
   color: var(--text-primary);
 }

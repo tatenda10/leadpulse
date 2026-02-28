@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineLightningBolt, HiOutlineFire } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineLightningBolt, HiOutlineFire, HiOutlineX } from 'react-icons/hi'
 import './HotLeadThreshold.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,6 +17,7 @@ export const HotLeadThreshold: React.FC = () => {
   const [saved, setSaved] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -66,7 +68,10 @@ export const HotLeadThreshold: React.FC = () => {
       setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save thresholds')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save thresholds', type: 'error' })
+      return
     }
+    setToast({ message: 'Thresholds updated', type: 'success' })
   }
 
   const isValid = warmThreshold < hotThreshold
@@ -86,6 +91,14 @@ export const HotLeadThreshold: React.FC = () => {
       </header>
 
       {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+      {toast && (
+        <ThresholdToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {loading ? (
         <div className="threshold-card"><p>Loading thresholds...</p></div>
@@ -152,5 +165,28 @@ export const HotLeadThreshold: React.FC = () => {
       </div>
       )}
     </div>
+  )
+}
+
+type ThresholdToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const ThresholdToast: React.FC<ThresholdToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`threshold-toast threshold-toast-${type}`} role="status">
+      <span className="threshold-toast-message">{message}</span>
+      <button type="button" className="threshold-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }

@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { apiRequest } from '../contexts/Api'
+import { useAuth } from '../contexts/AuthContext'
+import { useUnreadCount } from '../contexts/UnreadCountContext'
 import { Sidebar } from './Sidebar'
 import { TopNavBar } from './TopNavBar'
 import { IconRail } from './IconRail'
@@ -8,9 +11,6 @@ import { Dashboard } from '../pages/Dashboard'
 import { ActivityFeed } from '../pages/ActivityFeed'
 import { Performance } from '../pages/Performance'
 import { AllChats } from '../pages/AllChats'
-import { HotLeads } from '../pages/HotLeads'
-import { BotHandling } from '../pages/BotHandling'
-import { HumanHandling } from '../pages/HumanHandling'
 import { Unread } from '../pages/Unread'
 import { AutoReplies } from '../pages/AutoReplies'
 import { WelcomeMessage } from '../pages/WelcomeMessage'
@@ -20,11 +20,9 @@ import { BotStatus } from '../pages/BotStatus'
 import { ScoringRules } from '../pages/ScoringRules'
 import { HotLeadThreshold } from '../pages/HotLeadThreshold'
 import { KeywordWeights } from '../pages/KeywordWeights'
-import { LeadTimeline } from '../pages/LeadTimeline'
 import { LeadTags } from '../pages/LeadTags'
 import { AllCampaigns } from '../pages/AllCampaigns'
 import { FacebookSources } from '../pages/FacebookSources'
-import { ClickToWhatsAppLinks } from '../pages/ClickToWhatsAppLinks'
 import { CampaignPerformance } from '../pages/CampaignPerformance'
 import { AllContacts } from '../pages/AllContacts'
 import { ContactSegments } from '../pages/ContactSegments'
@@ -45,6 +43,7 @@ import { SettingsPhoneNumber } from '../pages/SettingsPhoneNumber'
 import { SettingsTeam } from '../pages/SettingsTeam'
 import { SettingsRoles } from '../pages/SettingsRoles'
 import { SettingsPermissions } from '../pages/SettingsPermissions'
+import { Notifications } from '../pages/Notifications'
 import '../layout/Layout.css'
 import '../layout/Sidebar.css'
 import '../layout/TopNavBar.css'
@@ -54,21 +53,118 @@ type LayoutProps = {
   onLogout?: () => void
 }
 
+const LAST_LOCATION_KEY = 'leadpulse_last_location'
+
+type SavedLocation = {
+  section: PrimarySection
+  subMenu: string
+}
+
+function readInitialLocation(): SavedLocation {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(LAST_LOCATION_KEY) : null
+    if (!raw) {
+      return { section: 'dashboard', subMenu: DEFAULT_SUBMENU.dashboard }
+    }
+    const parsed = JSON.parse(raw) as { section?: PrimarySection; subMenu?: string }
+    if (parsed.section && PRIMARY_SECTION_LABELS[parsed.section]) {
+      return {
+        section: parsed.section,
+        subMenu: parsed.subMenu || DEFAULT_SUBMENU[parsed.section],
+      }
+    }
+  } catch {
+    // ignore bad data and fall back
+  }
+  return { section: 'dashboard', subMenu: DEFAULT_SUBMENU.dashboard }
+}
+
+type ConversationsResponse = {
+  conversations: Array<{ unread?: number }>
+}
+
+type OverviewQuickStats = {
+  quickStats: { liveChatsNow: number }
+}
+
 export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
+  const { token } = useAuth()
+  const { setUnreadCount } = useUnreadCount()
+  const initialLocation = readInitialLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarHidden, setSidebarHidden] = useState(false)
-  const [activeSection, setActiveSection] = useState<PrimarySection>('dashboard')
-  const [activeSubMenu, setActiveSubMenu] = useState<string>(DEFAULT_SUBMENU.dashboard)
+  const [activeSection, setActiveSection] = useState<PrimarySection>(initialLocation.section)
+  const [activeSubMenu, setActiveSubMenu] = useState<string>(initialLocation.subMenu)
+  const [liveChatsNow, setLiveChatsNow] = useState<number>(0)
+  const [showNotificationsPage, setShowNotificationsPage] = useState(false)
 
+  // Fetch live chats count for top nav pill
   useEffect(() => {
-    setActiveSubMenu(DEFAULT_SUBMENU[activeSection])
-  }, [activeSection])
+    if (!token) return
+    let cancelled = false
+    apiRequest<OverviewQuickStats>('/analytics/overview', { token })
+      .then((res) => {
+        if (!cancelled) setLiveChatsNow(res.quickStats?.liveChatsNow ?? 0)
+      })
+      .catch(() => {
+        if (!cancelled) setLiveChatsNow(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
+
+  // Fetch unread count for sidebar badge
+  useEffect(() => {
+    if (!token) return
+    let cancelled = false
+    apiRequest<ConversationsResponse>('/conversations', { token })
+      .then((res) => {
+        if (!cancelled) {
+          const total = (res.conversations || []).reduce((s, c) => s + (c.unread || 0), 0)
+          setUnreadCount(total)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnreadCount(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, setUnreadCount])
+
+  // Redirect if saved submenu was removed (e.g. Lead Timeline, Click-to-WhatsApp)
+  useEffect(() => {
+    if (activeSection === 'lead-intelligence' && activeSubMenu === 'timeline') {
+      setActiveSubMenu(DEFAULT_SUBMENU['lead-intelligence'])
+    }
+    if (activeSection === 'campaigns' && activeSubMenu === 'click-to-whatsapp') {
+      setActiveSubMenu(DEFAULT_SUBMENU.campaigns)
+    }
+  }, [activeSection, activeSubMenu])
+
+  // Persist current location so refresh returns to same page
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        LAST_LOCATION_KEY,
+        JSON.stringify({ section: activeSection, subMenu: activeSubMenu })
+      )
+    } catch {
+      // ignore storage errors
+    }
+  }, [activeSection, activeSubMenu])
 
   const handleSubMenuSelect = (key: string) => {
     setActiveSubMenu(key)
   }
 
   const renderContent = () => {
+    if (showNotificationsPage) {
+      return (
+        <Notifications onBack={() => setShowNotificationsPage(false)} />
+      )
+    }
     if (activeSection === 'dashboard') {
       if (activeSubMenu === 'activity') return <ActivityFeed />
       if (activeSubMenu === 'performance') return <Performance />
@@ -76,9 +172,6 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     }
     if (activeSection === 'conversations') {
       if (activeSubMenu === 'all') return <AllChats />
-      if (activeSubMenu === 'hot') return <HotLeads />
-      if (activeSubMenu === 'bot-handling') return <BotHandling />
-      if (activeSubMenu === 'human-handling') return <HumanHandling />
       if (activeSubMenu === 'unread') return <Unread />
     }
     if (activeSection === 'chatbot') {
@@ -92,13 +185,11 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       if (activeSubMenu === 'scoring') return <ScoringRules />
       if (activeSubMenu === 'threshold') return <HotLeadThreshold />
       if (activeSubMenu === 'weights') return <KeywordWeights />
-      if (activeSubMenu === 'timeline') return <LeadTimeline />
       if (activeSubMenu === 'tags') return <LeadTags />
     }
     if (activeSection === 'campaigns') {
       if (activeSubMenu === 'all-campaigns') return <AllCampaigns />
       if (activeSubMenu === 'facebook') return <FacebookSources />
-      if (activeSubMenu === 'click-to-whatsapp') return <ClickToWhatsAppLinks />
       if (activeSubMenu === 'performance') return <CampaignPerformance />
     }
     if (activeSection === 'contacts') {
@@ -130,8 +221,15 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className={`dashboard-container ${sidebarHidden ? 'sidebar-hidden' : ''}`}>
-      <IconRail activeSection={activeSection} onSelect={setActiveSection} onLogout={onLogout} />
+    <div className={`dashboard-container ${sidebarHidden ? 'sidebar-hidden' : ''} ${sidebarOpen ? 'menu-open' : ''}`}>
+      <IconRail
+        activeSection={activeSection}
+        onSelect={(section) => {
+          setActiveSection(section)
+          setActiveSubMenu(DEFAULT_SUBMENU[section])
+        }}
+        onLogout={onLogout}
+      />
       <Sidebar
         open={sidebarOpen}
         setOpen={setSidebarOpen}
@@ -141,10 +239,19 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       />
       <main className="main-content">
         <TopNavBar
-          onMenuClick={() => setSidebarOpen(true)}
-          activeSectionLabel={PRIMARY_SECTION_LABELS[activeSection]}
+          onMenuClick={() => {
+            if (sidebarOpen) {
+              setSidebarOpen(false)
+            } else {
+              setSidebarOpen(true)
+              setSidebarHidden(false)
+            }
+          }}
+          activeSectionLabel={showNotificationsPage ? 'Notifications' : PRIMARY_SECTION_LABELS[activeSection]}
           onSidebarToggle={() => setSidebarHidden((prev) => !prev)}
           isSidebarHidden={sidebarHidden}
+          liveChatsNow={liveChatsNow}
+          onNotificationsClick={() => setShowNotificationsPage((prev) => !prev)}
         />
         <div className="main-content-scrollable">{renderContent()}</div>
       </main>

@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { HiOutlineChip, HiOutlineUser, HiOutlineChat } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineChip, HiOutlineUser, HiOutlineChat, HiOutlineArrowLeft, HiOutlineX, HiOutlineSearch } from 'react-icons/hi'
 import './AllChats.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
+import { useUnreadCount } from '../contexts/UnreadCountContext'
 
 type Chat = {
   id: string
@@ -180,12 +182,19 @@ function formatStartedAt(value: string | null): string {
   })
 }
 
+type ChatFilter = 'all' | 'hot' | 'warm' | 'cold' | 'bot' | 'human'
+
 export const AllChats: React.FC = () => {
   const { token } = useAuth()
+  const { setUnreadCount } = useUnreadCount()
   const [chats, setChats] = useState<Chat[]>([])
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [messageInput, setMessageInput] = useState('')
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
+  const [showLeadModal, setShowLeadModal] = useState(false)
+  const [chatFilter, setChatFilter] = useState<ChatFilter>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [loadingChats, setLoadingChats] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -229,6 +238,7 @@ export const AllChats: React.FC = () => {
         }))
 
         setChats(nextChats)
+        setUnreadCount(nextChats.reduce((s, c) => s + c.unread, 0))
         setSelectedChatId((current) => {
           if (current && nextChats.some((chat) => chat.id === current)) {
             return current
@@ -240,6 +250,7 @@ export const AllChats: React.FC = () => {
           setChatError(error instanceof Error ? error.message : 'Failed to load chats')
           setChats([])
           setSelectedChatId(null)
+          setUnreadCount(0)
         }
       } finally {
         if (!cancelled) {
@@ -337,8 +348,48 @@ export const AllChats: React.FC = () => {
     [chats, selectedChatId]
   )
 
+  const filteredChats = useMemo(() => {
+    let list = chats
+    switch (chatFilter) {
+      case 'hot':
+        list = list.filter((c) => getLeadTier(c.leadScore, warmThreshold, hotThreshold) === 'hot')
+        break
+      case 'warm':
+        list = list.filter((c) => getLeadTier(c.leadScore, warmThreshold, hotThreshold) === 'warm')
+        break
+      case 'cold':
+        list = list.filter((c) => getLeadTier(c.leadScore, warmThreshold, hotThreshold) === 'cold')
+        break
+      case 'bot':
+        list = list.filter((c) => c.status === 'bot')
+        break
+      case 'human':
+        list = list.filter((c) => c.status === 'human')
+        break
+      default:
+        break
+    }
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.contact.toLowerCase().includes(q) ||
+          c.phone.toLowerCase().includes(q) ||
+          c.lastMessage.toLowerCase().includes(q)
+      )
+    }
+    return list
+  }, [chats, chatFilter, searchQuery, warmThreshold, hotThreshold])
+
   const buyLikelihoodScore = useMemo(() => calculateBuyLikelihood(messages), [messages])
   const buyLikelihoodLabel = useMemo(() => getLikelihoodLabel(buyLikelihoodScore), [buyLikelihoodScore])
+
+  // When no chat is selected, ensure mobile view shows the chat list
+  useEffect(() => {
+    if (!selectedChatId) {
+      setIsMobileChatOpen(false)
+    }
+  }, [selectedChatId])
 
   const handleToggleTakeover = async () => {
     if (!selectedChat || !token || updatingStatus) return
@@ -423,11 +474,68 @@ export const AllChats: React.FC = () => {
   }
 
   return (
-    <div className="all-chats">
+    <div className={`all-chats ${isMobileChatOpen ? 'mobile-chat-open' : ''}`}>
       <aside className="chat-list">
         <div className="chat-list-header">
-          <span className="chat-list-title">Conversations</span>
-          <span className="chat-list-count">{chats.length}</span>
+          <div className="chat-list-header-main">
+            <span className="chat-list-title">Conversations</span>
+            <span className="chat-list-count">{filteredChats.length}</span>
+          </div>
+          <div className="chat-search-wrap">
+            <HiOutlineSearch size={18} className="chat-search-icon" />
+            <input
+              type="search"
+              className="chat-search-input"
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search conversations"
+            />
+          </div>
+          <div className="chat-filter-pills">
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setChatFilter('all')}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'hot' ? 'active' : ''}`}
+              onClick={() => setChatFilter('hot')}
+            >
+              Hot leads
+            </button>
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'warm' ? 'active' : ''}`}
+              onClick={() => setChatFilter('warm')}
+            >
+              Warm
+            </button>
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'cold' ? 'active' : ''}`}
+              onClick={() => setChatFilter('cold')}
+            >
+              Cold
+            </button>
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'bot' ? 'active' : ''}`}
+              onClick={() => setChatFilter('bot')}
+            >
+              Bot
+            </button>
+            <button
+              type="button"
+              className={`chat-filter-pill ${chatFilter === 'human' ? 'active' : ''}`}
+              onClick={() => setChatFilter('human')}
+            >
+              Human
+            </button>
+          </div>
         </div>
         <div className="chat-list-items">
           {loadingChats ? (
@@ -438,17 +546,20 @@ export const AllChats: React.FC = () => {
             <div className="chat-window-empty">
               <p>{chatError}</p>
             </div>
-          ) : chats.length === 0 ? (
+          ) : filteredChats.length === 0 ? (
             <div className="chat-window-empty">
-              <p>No conversations yet</p>
+              <p>No conversations match this filter</p>
             </div>
           ) : (
-            chats.map((chat) => (
+            filteredChats.map((chat) => (
               <button
                 key={chat.id}
                 type="button"
                 className={`chat-item ${selectedChat?.id === chat.id ? 'active' : ''} ${chat.unread ? 'unread' : ''}`}
-                onClick={() => setSelectedChatId(chat.id)}
+                onClick={() => {
+                  setSelectedChatId(chat.id)
+                  setIsMobileChatOpen(true)
+                }}
               >
                 <div className="chat-item-avatar">{chat.contact.charAt(0) || '?'}</div>
                 <div className="chat-item-content">
@@ -481,19 +592,35 @@ export const AllChats: React.FC = () => {
           <>
             <div className="chat-window-header">
               <div className="chat-window-contact">
+                <button
+                  type="button"
+                  className="chat-back-btn"
+                  onClick={() => setIsMobileChatOpen(false)}
+                >
+                  <HiOutlineArrowLeft size={18} />
+                </button>
                 <div className="chat-window-avatar">{selectedChat.contact.charAt(0) || '?'}</div>
                 <div>
                   <div className="chat-window-name">{selectedChat.contact}</div>
                   <div className="chat-window-phone">{selectedChat.phone}</div>
                 </div>
               </div>
-              <button type="button" className="takeover-btn" onClick={handleToggleTakeover} disabled={updatingStatus}>
-                {updatingStatus
-                  ? 'Updating...'
-                  : selectedChat.status === 'bot'
-                    ? 'Take over'
-                    : 'Return to bot'}
-              </button>
+              <div className="chat-window-actions">
+                <button
+                  type="button"
+                  className="lead-info-btn"
+                  onClick={() => setShowLeadModal(true)}
+                >
+                  Lead info
+                </button>
+                <button type="button" className="takeover-btn" onClick={handleToggleTakeover} disabled={updatingStatus}>
+                  {updatingStatus
+                    ? 'Updating...'
+                    : selectedChat.status === 'bot'
+                      ? 'Take over'
+                      : 'Return to bot'}
+                </button>
+              </div>
             </div>
 
             <div className="chat-messages">
@@ -554,52 +681,85 @@ export const AllChats: React.FC = () => {
         )}
       </section>
 
-      <aside className="chat-lead-panel">
-        {selectedChat ? (
+      {selectedChat && showLeadModal &&
+        createPortal(
           <>
-            <div className="lead-panel-header">Lead info</div>
-            <div className="lead-panel-section">
-              <div className="lead-score-row">
-                <span className="lead-label">Buy likelihood</span>
-                <span className={`lead-score ${buyLikelihoodScore >= 75 ? 'hot' : ''}`}>{buyLikelihoodScore}</span>
+            <div
+              className="segment-modal-overlay"
+              onClick={() => setShowLeadModal(false)}
+              aria-hidden="true"
+            />
+            <div
+              className="segment-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lead-info-modal-title"
+            >
+              <div className="segment-modal-header">
+                <h2 id="lead-info-modal-title" className="segment-modal-title">
+                  Lead info
+                </h2>
+                <button
+                  type="button"
+                  className="segment-modal-close"
+                  onClick={() => setShowLeadModal(false)}
+                  aria-label="Close"
+                >
+                  <HiOutlineX size={20} />
+                </button>
               </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Likelihood</span>
-                <span className="lead-value">{buyLikelihoodLabel}</span>
+              <div className="segment-modal-body">
+                <div className="segment-modal-field">
+                  <label>Buy likelihood</label>
+                  <div className="segment-detail-value">{buyLikelihoodScore}</div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Likelihood</label>
+                  <div className="segment-detail-value">{buyLikelihoodLabel}</div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Model score</label>
+                  <div className="segment-detail-value">{selectedChat.leadScore}</div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Lead tier</label>
+                  <div className="segment-detail-value">
+                    {getLeadTier(selectedChat.leadScore, warmThreshold, hotThreshold).toUpperCase()}
+                  </div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Status</label>
+                  <div className="segment-detail-value">
+                    {selectedChat.status === 'bot' ? 'Bot handling' : 'Human handling'}
+                  </div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Source</label>
+                  <div className="segment-detail-value">
+                    {selectedChat.source || <span className="segment-detail-muted">--</span>}
+                  </div>
+                </div>
+                <div className="segment-modal-field">
+                  <label>Last activity</label>
+                  <div className="segment-detail-value">
+                    {formatStartedAt(selectedChat.lastMessageAt)}
+                  </div>
+                </div>
               </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Model score</span>
-                <span className="lead-value">{selectedChat.leadScore}</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Lead tier</span>
-                <span className="lead-value">{getLeadTier(selectedChat.leadScore, warmThreshold, hotThreshold).toUpperCase()}</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Status</span>
-                <span className="lead-value">{selectedChat.status === 'bot' ? 'Bot handling' : 'Human handling'}</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Source</span>
-                <span className="lead-value">{selectedChat.source || '--'}</span>
-              </div>
-              <div className="lead-info-row">
-                <span className="lead-label">Last activity</span>
-                <span className="lead-value">{formatStartedAt(selectedChat.lastMessageAt)}</span>
+              <div className="segment-modal-footer">
+                <button
+                  type="button"
+                  className="segment-modal-btn segment-modal-btn-secondary"
+                  onClick={() => setShowLeadModal(false)}
+                >
+                  Close
+                </button>
               </div>
             </div>
-            <div className="lead-panel-section">
-              <div className="lead-label">Notes</div>
-              <textarea className="lead-notes" placeholder="Add notes..." rows={3} />
-            </div>
-          </>
-        ) : (
-          <div className="lead-panel-empty">
-            <HiOutlineUser size={32} className="lead-panel-empty-icon" />
-            <span>Select a chat to view lead details</span>
-          </div>
+          </>,
+          document.body
         )}
-      </aside>
+
     </div>
   )
 }

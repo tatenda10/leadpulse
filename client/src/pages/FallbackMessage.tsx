@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineExclamation } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineExclamation, HiOutlineX } from 'react-icons/hi'
 import './FallbackMessage.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,6 +17,7 @@ export const FallbackMessage: React.FC = () => {
   const [saved, setSaved] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -48,9 +50,23 @@ export const FallbackMessage: React.FC = () => {
     setSaved(false)
   }
 
-  const handleEnabledChange = (value: boolean) => {
+  const handleEnabledChange = async (value: boolean) => {
     setEnabled(value)
     setSaved(false)
+    if (!token) return
+    try {
+      await apiRequest<BotMessageResponse>('/settings/fallback-message', {
+        method: 'PUT',
+        body: { message, enabled: value },
+        token,
+      })
+      setSaved(true)
+      setError(null)
+      setToast({ message: value ? 'Fallback message enabled' : 'Fallback message paused', type: 'success' })
+    } catch (e) {
+      setEnabled(!value)
+      setToast({ message: e instanceof Error ? e.message : 'Failed to update', type: 'error' })
+    }
   }
 
   const handleSave = async () => {
@@ -63,8 +79,9 @@ export const FallbackMessage: React.FC = () => {
       })
       setSaved(true)
       setError(null)
+      setToast({ message: 'Changes saved', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save fallback message')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save fallback message', type: 'error' })
     }
   }
 
@@ -82,11 +99,20 @@ export const FallbackMessage: React.FC = () => {
         </div>
       </header>
 
-      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {error && <div className="fallback-message-error">{error}</div>}
 
-      {loading ? (
-        <div className="fallback-message-card"><p>Loading fallback message...</p></div>
-      ) : (
+      {toast && (
+        <FallbackToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="fallback-message-body">
+        {loading ? (
+          <div className="fallback-message-card"><p>Loading fallback message...</p></div>
+        ) : (
       <div className="fallback-message-content">
         <div className="fallback-message-card">
           <div className="fallback-message-card-header">
@@ -94,7 +120,7 @@ export const FallbackMessage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => handleEnabledChange(e.target.checked)}
+                onChange={(e) => void handleEnabledChange(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>
@@ -134,7 +160,31 @@ export const FallbackMessage: React.FC = () => {
           </div>
         </div>
       </div>
-      )}
+        )}
+      </div>
     </div>
+  )
+}
+
+type FallbackToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const FallbackToast: React.FC<FallbackToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`fallback-toast fallback-toast-${type}`} role="status">
+      <span className="fallback-toast-message">{message}</span>
+      <button type="button" className="fallback-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }

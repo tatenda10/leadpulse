@@ -4,6 +4,68 @@
   gap: var(--space-3);
 }
 
+.performance-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.performance-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.performance-desc {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Skeleton states */
+.performance-title-skeleton {
+  width: 180px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.performance-desc-skeleton {
+  width: 260px;
+  height: 14px;
+  margin-top: var(--space-1);
+  border-radius: 999px;
+}
+
+.perf-card-skeleton {
+  position: relative;
+}
+
+.perf-card-icon-skeleton {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  margin-bottom: var(--space-2);
+}
+
+.perf-card-label-skeleton {
+  width: 60%;
+  height: 12px;
+  border-radius: 999px;
+  margin-bottom: var(--space-1);
+}
+
+.perf-card-value-skeleton {
+  width: 40%;
+  height: 18px;
+  border-radius: 999px;
+}
+
+.chart-skeleton {
+  height: 260px;
+}
+
 .performance-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineKey, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineKey, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
 import './KeywordWeights.css'
+import './ContactSegments.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -16,10 +18,12 @@ type KeywordWeightResponse = { keywordWeight: KeywordWeight }
 export const KeywordWeights: React.FC = () => {
   const { token } = useAuth()
   const [weights, setWeights] = useState<KeywordWeight[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingWeight, setEditingWeight] = useState<KeywordWeight | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -47,9 +51,10 @@ export const KeywordWeights: React.FC = () => {
     try {
       await apiRequest(`/settings/keyword-weights/${id}`, { method: 'DELETE', token })
       setWeights((prev) => prev.filter((w) => w.id !== id))
-      setEditingId(null)
+      setDeleteConfirmId(null)
+      setToast({ message: 'Keyword deleted', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete keyword')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to delete keyword', type: 'error' })
     }
   }
 
@@ -62,9 +67,10 @@ export const KeywordWeights: React.FC = () => {
         token,
       })
       setWeights((prev) => prev.map((w) => (w.id === id ? response.keywordWeight : w)))
-      setEditingId(null)
+      setEditingWeight(null)
+      setToast({ message: 'Keyword updated', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save keyword')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save keyword', type: 'error' })
     }
   }
 
@@ -78,8 +84,9 @@ export const KeywordWeights: React.FC = () => {
       })
       setWeights((prev) => [response.keywordWeight, ...prev])
       setIsAdding(false)
+      setToast({ message: 'Keyword added', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add keyword')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to add keyword', type: 'error' })
     }
   }
 
@@ -101,35 +108,41 @@ export const KeywordWeights: React.FC = () => {
         </button>
       </header>
 
-      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {error && <div className="keyword-weights-error">{error}</div>}
+
+      {isAdding && (
+        <AddKeywordWeightModal
+          onClose={() => setIsAdding(false)}
+          onSave={(keyword, w) => void addWeight(keyword, w)}
+        />
+      )}
+
+      {editingWeight && (
+        <EditKeywordWeightModal
+          weight={editingWeight}
+          onClose={() => setEditingWeight(null)}
+          onSave={(keyword, w) => void saveWeight(editingWeight.id, keyword, w)}
+        />
+      )}
+
+      {deleteConfirmId && (
+        <DeleteConfirmModal
+          onClose={() => setDeleteConfirmId(null)}
+          onConfirm={() => void deleteWeight(deleteConfirmId)}
+        />
+      )}
+
+      {toast && (
+        <KeywordWeightsToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {loading ? (
         <div className="keyword-weights-empty"><p>Loading keyword weights...</p></div>
-      ) : (
-      <div className="keyword-weights-list">
-        {isAdding && (
-          <KeywordWeightCard
-            isNew
-            weight={{ id: 'new', keyword: '', weight: 10 }}
-            onSave={(keyword, w) => void addWeight(keyword, w)}
-            onCancel={() => setIsAdding(false)}
-          />
-        )}
-        {weights.map((w) => (
-          <KeywordWeightCard
-            key={w.id}
-            weight={w}
-            isEditing={editingId === w.id}
-            onEdit={() => setEditingId(w.id)}
-            onDelete={() => void deleteWeight(w.id)}
-            onSave={(keyword, weight) => void saveWeight(w.id, keyword, weight)}
-            onCancel={() => setEditingId(null)}
-          />
-        ))}
-      </div>
-      )}
-
-      {weights.length === 0 && !isAdding && !loading && (
+      ) : weights.length === 0 && !isAdding ? (
         <div className="keyword-weights-empty">
           <HiOutlineKey size={48} className="empty-icon" />
           <p>No keyword weights yet</p>
@@ -139,67 +152,261 @@ export const KeywordWeights: React.FC = () => {
             Add your first keyword
           </button>
         </div>
+      ) : (
+        <div className="keyword-weights-list">
+          {weights.map((w) => (
+            <KeywordWeightCard
+              key={w.id}
+              weight={w}
+              onEdit={() => setEditingWeight(w)}
+              onDelete={() => setDeleteConfirmId(w.id)}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
 }
 
-type KeywordWeightCardProps = {
-  weight: KeywordWeight
-  isNew?: boolean
-  isEditing?: boolean
-  onEdit?: () => void
-  onDelete?: () => void
-  onSave?: (keyword: string, weight: number) => void
-  onCancel?: () => void
+type AddKeywordWeightModalProps = {
+  onClose: () => void
+  onSave: (keyword: string, weight: number) => void
 }
 
-const KeywordWeightCard: React.FC<KeywordWeightCardProps> = ({ weight, isNew, isEditing, onEdit, onDelete, onSave, onCancel }) => {
-  const [keyword, setKeyword] = useState(weight.keyword)
-  const [weightVal, setWeightVal] = useState(String(weight.weight))
-  const canEdit = isNew ?? isEditing
+const AddKeywordWeightModal: React.FC<AddKeywordWeightModalProps> = ({ onClose, onSave }) => {
+  const [keyword, setKeyword] = useState('')
+  const [weight, setWeight] = useState('10')
 
-  const handleSave = () => {
-    const w = parseInt(weightVal, 10)
-    if (keyword.trim() && !isNaN(w) && w >= 0 && onSave) {
-      onSave(keyword.trim(), w)
-    }
+  const w = parseInt(weight, 10)
+  const canSave = keyword.trim() && !isNaN(w) && w >= 0
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    onSave(keyword.trim(), w)
   }
 
-  const canSave = keyword.trim() && !isNaN(parseInt(weightVal, 10)) && parseInt(weightVal, 10) >= 0
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="keyword-weights-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="add-keyword-weight-modal-title">
+          <div className="segment-modal-header">
+            <h2 id="add-keyword-weight-modal-title" className="segment-modal-title">Add keyword weight</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <form id="add-keyword-weight-form" onSubmit={handleSubmit} className="segment-modal-body">
+            <div className="segment-modal-field">
+              <label htmlFor="keyword-weight-keyword">
+                Keyword <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="keyword-weight-keyword"
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="e.g. price"
+              />
+            </div>
+            <div className="segment-modal-field">
+              <label htmlFor="keyword-weight-value">
+                Weight (points) <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="keyword-weight-value"
+                type="number"
+                min={0}
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                placeholder="10"
+              />
+            </div>
+          </form>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="add-keyword-weight-form"
+              className="segment-modal-btn segment-modal-btn-primary"
+              disabled={!canSave}
+            >
+              Add keyword
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
 
+type EditKeywordWeightModalProps = {
+  weight: KeywordWeight
+  onClose: () => void
+  onSave: (keyword: string, weight: number) => void
+}
+
+const EditKeywordWeightModal: React.FC<EditKeywordWeightModalProps> = ({ weight, onClose, onSave }) => {
+  const [keyword, setKeyword] = useState(weight.keyword)
+  const [value, setValue] = useState(String(weight.weight))
+
+  const w = parseInt(value, 10)
+  const canSave = keyword.trim() && !isNaN(w) && w >= 0
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    onSave(keyword.trim(), w)
+  }
+
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="keyword-weights-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="edit-keyword-weight-modal-title">
+          <div className="segment-modal-header">
+            <h2 id="edit-keyword-weight-modal-title" className="segment-modal-title">Edit keyword weight</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <form id="edit-keyword-weight-form" onSubmit={handleSubmit} className="segment-modal-body">
+            <div className="segment-modal-field">
+              <label htmlFor="edit-keyword-weight-keyword">
+                Keyword <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="edit-keyword-weight-keyword"
+                type="text"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+                placeholder="e.g. price"
+              />
+            </div>
+            <div className="segment-modal-field">
+              <label htmlFor="edit-keyword-weight-value">
+                Weight (points) <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="edit-keyword-weight-value"
+                type="number"
+                min={0}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder="10"
+              />
+            </div>
+          </form>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-keyword-weight-form"
+              className="segment-modal-btn segment-modal-btn-primary"
+              disabled={!canSave}
+            >
+              Save
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type DeleteConfirmModalProps = {
+  onClose: () => void
+  onConfirm: () => void
+}
+
+const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ onClose, onConfirm }) => {
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="keyword-weights-modal-center">
+        <div className="segment-modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-keyword-weight-title">
+          <div className="segment-modal-header">
+            <h2 id="delete-keyword-weight-title" className="segment-modal-title">Delete keyword</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <div className="segment-modal-body">
+            <p className="delete-confirm-text">Are you sure you want to delete this keyword weight? This cannot be undone.</p>
+          </div>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="segment-modal-btn segment-modal-btn-danger"
+              onClick={() => {
+                onConfirm()
+                onClose()
+              }}
+            >
+              Delete
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type KeywordWeightsToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const KeywordWeightsToast: React.FC<KeywordWeightsToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`keyword-weights-toast keyword-weights-toast-${type}`} role="status">
+      <span className="keyword-weights-toast-message">{message}</span>
+      <button type="button" className="keyword-weights-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
+  )
+}
+
+type KeywordWeightCardProps = {
+  weight: KeywordWeight
+  onEdit?: () => void
+  onDelete?: () => void
+}
+
+const KeywordWeightCard: React.FC<KeywordWeightCardProps> = ({ weight, onEdit, onDelete }) => {
   return (
     <div className="keyword-weight-card">
       <div className="keyword-weight-card-header">
-        {!canEdit ? (
-          <>
-            <span className="keyword-weight-preview">{weight.keyword}</span>
-            <span className="keyword-weight-value">+{weight.weight}</span>
-            <div className="keyword-weight-actions">
-              <button type="button" className="icon-btn" onClick={onEdit} title="Edit"><HiOutlinePencil size={16} /></button>
-              <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete"><HiOutlineTrash size={16} /></button>
-            </div>
-          </>
-        ) : (
-          <span className="keyword-weight-new-label">{isNew ? 'New keyword' : 'Editing'}</span>
-        )}
-      </div>
-      {canEdit && (
-        <div className="keyword-weight-card-body">
-          <div className="keyword-weight-field">
-            <label>Keyword</label>
-            <input type="text" value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="e.g. price" />
-          </div>
-          <div className="keyword-weight-field">
-            <label>Weight (points)</label>
-            <input type="number" min={0} value={weightVal} onChange={(e) => setWeightVal(e.target.value)} />
-          </div>
-          <div className="keyword-weight-footer">
-            <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
-            <button type="button" className="btn-primary" onClick={handleSave} disabled={!canSave}>{isNew ? 'Add' : 'Save'}</button>
-          </div>
+        <span className="keyword-weight-preview">{weight.keyword}</span>
+        <span className="keyword-weight-value">+{weight.weight}</span>
+        <div className="keyword-weight-actions">
+          <button type="button" className="icon-btn" onClick={onEdit} title="Edit">
+            <HiOutlinePencil size={16} />
+          </button>
+          <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete">
+            <HiOutlineTrash size={16} />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 }

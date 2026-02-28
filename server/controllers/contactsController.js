@@ -145,6 +145,20 @@ async function updateContact(req, res) {
   }
 }
 
+async function deleteContact(req, res) {
+  try {
+    const id = req.params.id;
+    const result = await query('DELETE FROM contacts WHERE id = ?', [id]);
+    if (!result.affectedRows) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    return res.status(204).send();
+  } catch (err) {
+    console.error('Delete contact error:', err);
+    return res.status(500).json({ error: 'Failed to delete contact' });
+  }
+}
+
 async function listContactNotes(req, res) {
   try {
     const rows = await query(
@@ -461,6 +475,7 @@ module.exports = {
   listContacts,
   createContact,
   updateContact,
+  deleteContact,
   listContactNotes,
   createContactNote,
   deleteContactNote,

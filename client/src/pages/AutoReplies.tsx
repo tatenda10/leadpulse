@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { HiOutlineReply, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
 import './AutoReplies.css'
 import './ContactSegments.css'
@@ -24,10 +25,12 @@ type AutoReplyResponse = {
 export const AutoReplies: React.FC = () => {
   const { token } = useAuth()
   const [rules, setRules] = useState<AutoReplyRule[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingRule, setEditingRule] = useState<AutoReplyRule | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -61,8 +64,9 @@ export const AutoReplies: React.FC = () => {
         token,
       })
       setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
+      setToast({ message: response.rule.enabled ? 'Rule enabled' : 'Rule paused', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update auto reply')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to update auto reply', type: 'error' })
     }
   }
 
@@ -71,9 +75,10 @@ export const AutoReplies: React.FC = () => {
     try {
       await apiRequest(`/settings/auto-replies/${id}`, { method: 'DELETE', token })
       setRules((prev) => prev.filter((r) => r.id !== id))
-      setEditingId(null)
+      setDeleteConfirmId(null)
+      setToast({ message: 'Rule deleted', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete auto reply')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to delete auto reply', type: 'error' })
     }
   }
 
@@ -86,9 +91,10 @@ export const AutoReplies: React.FC = () => {
         token,
       })
       setRules((prev) => prev.map((r) => (r.id === id ? response.rule : r)))
-      setEditingId(null)
+      setEditingRule(null)
+      setToast({ message: 'Rule updated', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save auto reply')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save auto reply', type: 'error' })
     }
   }
 
@@ -102,19 +108,17 @@ export const AutoReplies: React.FC = () => {
       })
       setRules((prev) => [response.rule, ...prev])
       setIsAdding(false)
+      setToast({ message: 'Rule added', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add auto reply')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to add auto reply', type: 'error' })
     }
   }
 
   return (
     <div className="auto-replies-page">
-      <header className="auto-replies-header">
-        <div>
-          <h1 className="auto-replies-title">
-            <HiOutlineReply size={24} />
-            Auto Replies
-          </h1>
+      <div className="auto-replies-header">
+        <div className="auto-replies-header-text">
+          <h1 className="auto-replies-title">Auto Replies</h1>
           <p className="auto-replies-desc">
             Configure automatic replies when customers send specific keywords or phrases.
           </p>
@@ -123,47 +127,67 @@ export const AutoReplies: React.FC = () => {
           <HiOutlinePlus size={18} />
           Add rule
         </button>
-      </header>
+      </div>
 
-      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      <div className="auto-replies-container">
+        {error && <div className="auto-replies-error">{error}</div>}
 
-      {isAdding && (
-        <AddAutoReplyModal
-          onClose={() => setIsAdding(false)}
-          onSave={(trigger, reply, matchType) => void addRule(trigger, reply, matchType)}
-        />
-      )}
+        {isAdding && (
+          <AddAutoReplyModal
+            onClose={() => setIsAdding(false)}
+            onSave={(trigger, reply, matchType) => void addRule(trigger, reply, matchType)}
+          />
+        )}
 
-      {loading ? (
-        <div className="auto-replies-empty"><p>Loading auto replies...</p></div>
-      ) : (
-        <div className="auto-replies-list">
-          {rules.map((rule) => (
-            <AutoReplyCard
-              key={rule.id}
-              rule={rule}
-              isEditing={editingId === rule.id}
-              onToggle={() => void toggleRule(rule.id)}
-              onEdit={() => setEditingId(rule.id)}
-              onDelete={() => void deleteRule(rule.id)}
-              onSave={(trigger, reply, matchType) => void saveRule(rule.id, trigger, reply, matchType)}
-              onCancel={() => setEditingId(null)}
-            />
-          ))}
-        </div>
-      )}
+        {editingRule && (
+          <EditAutoReplyModal
+            rule={editingRule}
+            onClose={() => setEditingRule(null)}
+            onSave={(trigger, reply, matchType) => void saveRule(editingRule.id, trigger, reply, matchType)}
+          />
+        )}
 
-      {rules.length === 0 && !isAdding && !loading && (
-        <div className="auto-replies-empty">
-          <HiOutlineReply size={48} className="empty-icon" />
-          <p>No auto reply rules yet</p>
-          <span className="empty-hint">Add a rule to let your bot respond automatically to keywords</span>
-          <button type="button" className="empty-add-btn" onClick={() => setIsAdding(true)}>
-            <HiOutlinePlus size={18} />
-            Add your first rule
-          </button>
-        </div>
-      )}
+        {deleteConfirmId && (
+          <DeleteConfirmModal
+            onClose={() => setDeleteConfirmId(null)}
+            onConfirm={() => void deleteRule(deleteConfirmId)}
+          />
+        )}
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+
+        {loading ? (
+          <div className="auto-replies-empty"><p>Loading auto replies...</p></div>
+        ) : rules.length === 0 && !isAdding ? (
+          <div className="auto-replies-empty">
+            <HiOutlineReply size={48} className="empty-icon" />
+            <p>No auto reply rules yet</p>
+            <span className="empty-hint">Add a rule to let your bot respond automatically to keywords</span>
+            <button type="button" className="empty-add-btn" onClick={() => setIsAdding(true)}>
+              <HiOutlinePlus size={18} />
+              Add your first rule
+            </button>
+          </div>
+        ) : (
+          <div className="auto-replies-list">
+            {rules.map((rule) => (
+              <AutoReplyCard
+                key={rule.id}
+                rule={rule}
+                onToggle={() => void toggleRule(rule.id)}
+                onEdit={() => setEditingRule(rule)}
+                onDelete={() => setDeleteConfirmId(rule.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -186,10 +210,11 @@ const AddAutoReplyModal: React.FC<AddAutoReplyModalProps> = ({ onClose, onSave }
     onSave(trigger.trim(), reply.trim(), matchType)
   }
 
-  return (
+  return createPortal(
     <>
       <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
-      <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="add-autoreply-modal-title">
+      <div className="autoreply-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="add-autoreply-modal-title">
         <div className="segment-modal-header">
           <h2 id="add-autoreply-modal-title" className="segment-modal-title">Add rule</h2>
           <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
@@ -246,123 +271,199 @@ const AddAutoReplyModal: React.FC<AddAutoReplyModalProps> = ({ onClose, onSave }
             Add rule
           </button>
         </footer>
+        </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
-type AutoReplyCardProps = {
+type EditAutoReplyModalProps = {
   rule: AutoReplyRule
-  isNew?: boolean
-  isEditing?: boolean
-  onToggle?: () => void
-  onEdit?: () => void
-  onDelete?: () => void
-  onSave?: (trigger: string, reply: string, matchType: 'contains' | 'exact') => void
-  onCancel?: () => void
+  onClose: () => void
+  onSave: (trigger: string, reply: string, matchType: 'contains' | 'exact') => void
 }
 
-const AutoReplyCard: React.FC<AutoReplyCardProps> = ({
-  rule,
-  isNew,
-  isEditing,
-  onToggle,
-  onEdit,
-  onDelete,
-  onSave,
-  onCancel,
-}) => {
+const EditAutoReplyModal: React.FC<EditAutoReplyModalProps> = ({ rule, onClose, onSave }) => {
   const [trigger, setTrigger] = useState(rule.trigger)
   const [reply, setReply] = useState(rule.reply)
   const [matchType, setMatchType] = useState<'contains' | 'exact'>(rule.matchType)
-  const canEdit = isNew ?? isEditing
 
-  const handleSave = () => {
-    if (trigger.trim() && reply.trim() && onSave) {
-      onSave(trigger.trim(), reply.trim(), matchType)
-    }
+  const canSave = trigger.trim() && reply.trim()
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    onSave(trigger.trim(), reply.trim(), matchType)
   }
 
-  return (
-    <div className={`auto-reply-card ${!rule.enabled ? 'disabled' : ''}`}>
-      <div className="auto-reply-card-header">
-        {!isNew && (
-          <>
-            <label className="auto-reply-toggle">
-              <input type="checkbox" checked={rule.enabled} onChange={onToggle ?? (() => {})} />
-              <span className="toggle-slider" />
-            </label>
-            <span className="auto-reply-status">{rule.enabled ? 'Active' : 'Paused'}</span>
-          </>
-        )}
-        {isNew && <span className="auto-reply-status">New rule</span>}
-        {!canEdit && (
-          <div className="auto-reply-actions">
-            <button type="button" className="icon-btn" onClick={onEdit} title="Edit">
-              <HiOutlinePencil size={16} />
-            </button>
-            <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete">
-              <HiOutlineTrash size={16} />
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="autoreply-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="edit-autoreply-modal-title">
+          <div className="segment-modal-header">
+            <h2 id="edit-autoreply-modal-title" className="segment-modal-title">Edit rule</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
             </button>
           </div>
-        )}
-      </div>
-
-      <div className="auto-reply-card-body">
-        {canEdit ? (
-          <>
-            <div className="auto-reply-field">
-              <label>Trigger keywords (comma-separated)</label>
+          <form id="edit-autoreply-form" onSubmit={handleSubmit} className="segment-modal-body">
+            <div className="segment-modal-field">
+              <label htmlFor="edit-auto-reply-trigger">
+                Trigger keywords (comma-separated) <span className="segment-field-required">*</span>
+              </label>
               <input
+                id="edit-auto-reply-trigger"
                 type="text"
                 value={trigger}
                 onChange={(e) => setTrigger(e.target.value)}
                 placeholder="e.g. price, cost, how much"
               />
             </div>
-            <div className="auto-reply-field">
-              <label>Match type</label>
-              <select value={matchType} onChange={(e) => setMatchType(e.target.value as 'contains' | 'exact')}>
+            <div className="segment-modal-field">
+              <label htmlFor="edit-auto-reply-match-type">Match type</label>
+              <select
+                id="edit-auto-reply-match-type"
+                value={matchType}
+                onChange={(e) => setMatchType(e.target.value as 'contains' | 'exact')}
+              >
                 <option value="contains">Contains any keyword</option>
                 <option value="exact">Exact phrase</option>
               </select>
             </div>
-            <div className="auto-reply-field">
-              <label>Reply message</label>
+            <div className="segment-modal-field">
+              <label htmlFor="edit-auto-reply-message">
+                Reply message <span className="segment-field-required">*</span>
+              </label>
               <textarea
+                id="edit-auto-reply-message"
                 value={reply}
                 onChange={(e) => setReply(e.target.value)}
                 placeholder="Your automatic reply..."
                 rows={3}
               />
             </div>
-            <div className="auto-reply-card-footer">
-              <button type="button" className="btn-secondary" onClick={onCancel}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleSave}
-                disabled={!trigger.trim() || !reply.trim()}
-              >
-                {isNew ? 'Add rule' : 'Save'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="auto-reply-preview">
-              <span className="preview-label">When customer says:</span>
-              <span className="preview-value">{rule.trigger}</span>
-              <span className="preview-meta">{rule.matchType === 'exact' ? 'Exact phrase' : 'Contains'}</span>
-            </div>
-            <div className="auto-reply-preview">
-              <span className="preview-label">Bot replies:</span>
-              <span className="preview-value">{rule.reply}</span>
-            </div>
-          </>
-        )}
+          </form>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-autoreply-form"
+              className="segment-modal-btn segment-modal-btn-primary"
+              disabled={!canSave}
+            >
+              Save
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type DeleteConfirmModalProps = {
+  onClose: () => void
+  onConfirm: () => void
+}
+
+const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ onClose, onConfirm }) => {
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="autoreply-modal-center">
+        <div className="segment-modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+          <div className="segment-modal-header">
+            <h2 id="delete-confirm-title" className="segment-modal-title">Delete rule</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <div className="segment-modal-body">
+            <p className="delete-confirm-text">Are you sure you want to delete this auto reply rule? This cannot be undone.</p>
+          </div>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="button" className="segment-modal-btn segment-modal-btn-danger" onClick={() => { onConfirm(); onClose(); }}>
+              Delete
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type ToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`toast toast-${type}`} role="status">
+      <span className="toast-message">{message}</span>
+      <button type="button" className="toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
+  )
+}
+
+type AutoReplyCardProps = {
+  rule: AutoReplyRule
+  onToggle?: () => void
+  onEdit?: () => void
+  onDelete?: () => void
+}
+
+const AutoReplyCard: React.FC<AutoReplyCardProps> = ({
+  rule,
+  onToggle,
+  onEdit,
+  onDelete,
+}) => {
+  return (
+    <div className={`auto-reply-card ${!rule.enabled ? 'disabled' : ''}`}>
+      <div className="auto-reply-card-header">
+        <label className="auto-reply-toggle">
+          <input type="checkbox" checked={rule.enabled} onChange={onToggle ?? (() => {})} />
+          <span className="toggle-slider" />
+        </label>
+        <span className="auto-reply-status">{rule.enabled ? 'Active' : 'Paused'}</span>
+        <div className="auto-reply-actions">
+          <button type="button" className="icon-btn" onClick={onEdit} title="Edit">
+            <HiOutlinePencil size={16} />
+          </button>
+          <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete">
+            <HiOutlineTrash size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="auto-reply-card-body">
+        <div className="auto-reply-preview">
+          <span className="preview-label">When customer says:</span>
+          <span className="preview-value">{rule.trigger}</span>
+          <span className="preview-meta">{rule.matchType === 'exact' ? 'Exact phrase' : 'Contains'}</span>
+        </div>
+        <div className="auto-reply-preview">
+          <span className="preview-label">Bot replies:</span>
+          <span className="preview-value">{rule.reply}</span>
+        </div>
       </div>
     </div>
   )

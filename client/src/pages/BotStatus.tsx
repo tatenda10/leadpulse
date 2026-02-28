@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineStatusOnline, HiOutlineChip, HiOutlineChat, HiOutlineClock } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineStatusOnline, HiOutlineChip, HiOutlineChat, HiOutlineClock, HiOutlineX } from 'react-icons/hi'
 import './BotStatus.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
@@ -29,6 +30,7 @@ export const BotStatus: React.FC = () => {
   const [saved, setSaved] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [stats, setStats] = useState({
     botActiveConversations: 0,
     botMessagesToday: 0,
@@ -63,22 +65,60 @@ export const BotStatus: React.FC = () => {
     }
   }, [token])
 
+  const updateStatus = async (payload: { botEnabled?: boolean; awayEnabled?: boolean; awayMessage?: string }) => {
+    if (!token) return
+    const body = {
+      botEnabled: payload.botEnabled ?? botEnabled,
+      awayEnabled: payload.awayEnabled ?? showAwayMessage,
+      awayMessage: payload.awayMessage ?? awayMessage,
+    }
+    const response = await apiRequest<BotStatusResponse>('/settings/bot-status', {
+      method: 'PUT',
+      body,
+      token,
+    })
+    return response
+  }
+
+  const handleBotToggle = async (value: boolean) => {
+    setBotEnabled(value)
+    setSaved(false)
+    if (!token) return
+    try {
+      await updateStatus({ botEnabled: value })
+      setSaved(true)
+      setError(null)
+      setToast({ message: value ? 'Chatbot enabled' : 'Chatbot paused', type: 'success' })
+    } catch (e) {
+      setBotEnabled(!value)
+      setToast({ message: e instanceof Error ? e.message : 'Failed to update chatbot', type: 'error' })
+    }
+  }
+
+  const handleAwayToggle = async (value: boolean) => {
+    setShowAwayMessage(value)
+    setSaved(false)
+    if (!token) return
+    try {
+      await updateStatus({ awayEnabled: value })
+      setSaved(true)
+      setError(null)
+      setToast({ message: value ? 'Away message enabled' : 'Away message disabled', type: 'success' })
+    } catch (e) {
+      setShowAwayMessage(!value)
+      setToast({ message: e instanceof Error ? e.message : 'Failed to update away message', type: 'error' })
+    }
+  }
+
   const handleSave = async () => {
     if (!token) return
     try {
-      await apiRequest<BotStatusResponse>('/settings/bot-status', {
-        method: 'PUT',
-        body: {
-          botEnabled,
-          awayEnabled: showAwayMessage,
-          awayMessage,
-        },
-        token,
-      })
+      await updateStatus({ awayMessage })
       setSaved(true)
       setError(null)
+      setToast({ message: 'Changes saved', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save bot status')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save bot status', type: 'error' })
     }
   }
 
@@ -120,11 +160,20 @@ export const BotStatus: React.FC = () => {
         </div>
       </header>
 
-      {error && <div style={{ color: '#b91c1c', fontSize: 12 }}>{error}</div>}
+      {error && <div className="bot-status-error">{error}</div>}
 
-      {loading ? (
-        <div className="bot-status-card"><p>Loading bot status...</p></div>
-      ) : (
+      {toast && (
+        <BotStatusToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="bot-status-container">
+        {loading ? (
+          <div className="bot-status-card"><p>Loading bot status...</p></div>
+        ) : (
         <div className="bot-status-content">
           <div className="bot-status-card">
             <div className="bot-status-main">
@@ -141,10 +190,7 @@ export const BotStatus: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={botEnabled}
-                  onChange={(e) => {
-                    setBotEnabled(e.target.checked)
-                    setSaved(false)
-                  }}
+                  onChange={(e) => void handleBotToggle(e.target.checked)}
                 />
                 <span className="toggle-slider" />
               </label>
@@ -163,10 +209,7 @@ export const BotStatus: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={showAwayMessage}
-                  onChange={(e) => {
-                    setShowAwayMessage(e.target.checked)
-                    setSaved(false)
-                  }}
+                  onChange={(e) => void handleAwayToggle(e.target.checked)}
                 />
                 <span className="toggle-slider" />
               </label>
@@ -181,7 +224,7 @@ export const BotStatus: React.FC = () => {
               placeholder="Away message..."
               rows={3}
             />
-            <div style={{ marginTop: 12 }}>
+            <div className="bot-status-save-wrap">
               <button
                 type="button"
                 className="bot-status-save-btn"
@@ -208,7 +251,31 @@ export const BotStatus: React.FC = () => {
             ))}
           </div>
         </div>
-      )}
+        )}
+      </div>
     </div>
+  )
+}
+
+type BotStatusToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const BotStatusToast: React.FC<BotStatusToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`bot-status-toast bot-status-toast-${type}`} role="status">
+      <span className="bot-status-toast-message">{message}</span>
+      <button type="button" className="bot-status-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }

@@ -5,6 +5,11 @@ import './Settings.css'
 export const SettingsPhoneNumber: React.FC = () => {
   const [phone, setPhone] = useState('+263 77 123 4567')
   const [displayName, setDisplayName] = useState('LeadPulse Support')
+  const [saved, setSaved] = useState(true)
+
+  const handleSave = () => {
+    setSaved(true)
+  }
 
   return (
     <div className="settings-page">
@@ -18,13 +23,15 @@ export const SettingsPhoneNumber: React.FC = () => {
       <div className="settings-card">
         <div className="settings-field">
           <label>Phone number</label>
-          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input type="tel" value={phone} onChange={(e) => { setPhone(e.target.value); setSaved(false) }} />
         </div>
         <div className="settings-field">
           <label>Display name</label>
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <input value={displayName} onChange={(e) => { setDisplayName(e.target.value); setSaved(false) }} />
         </div>
-        <button type="button" className="settings-save-btn">Save</button>
+        <button type="button" className="settings-save-btn" onClick={handleSave} disabled={saved}>
+          {saved ? 'Saved' : 'Save'}
+        </button>
       </div>
     </div>
   )

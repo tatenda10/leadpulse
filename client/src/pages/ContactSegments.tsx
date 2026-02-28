@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { HiOutlineViewGrid, HiOutlinePlus, HiOutlineX } from 'react-icons/hi'
 import './ContactSegments.css'
 import { apiRequest } from '../contexts/Api'
@@ -16,29 +17,28 @@ type Segment = {
 
 type SegmentsResponse = { segments: Segment[] }
 
-type Toast = { show: boolean; type: 'success' | 'error'; message: string }
+type ToastState = { message: string; type: 'success' | 'error' } | null
 
 export const ContactSegments: React.FC = () => {
   const { token } = useAuth()
   const [segments, setSegments] = useState<Segment[]>([])
+  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [viewSegment, setViewSegment] = useState<Segment | null>(null)
-  const [toast, setToast] = useState<Toast>({ show: false, type: 'success', message: '' })
-
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ show: true, type, message })
-    setTimeout(() => setToast((t) => ({ ...t, show: false })), 4000)
-  }
+  const [toast, setToast] = useState<ToastState>(null)
 
   useEffect(() => {
     let cancelled = false
     async function loadSegments() {
       if (!token) return
+      setLoading(true)
       try {
         const response = await apiRequest<SegmentsResponse>('/contacts/segments', { token })
         if (!cancelled) setSegments(response.segments)
       } catch (e) {
-        if (!cancelled) showToast('error', e instanceof Error ? e.message : 'Failed to load segments')
+        if (!cancelled) setToast({ type: 'error', message: e instanceof Error ? e.message : 'Failed to load segments' })
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
     void loadSegments()
@@ -58,11 +58,33 @@ export const ContactSegments: React.FC = () => {
       const refreshed = await apiRequest<SegmentsResponse>('/contacts/segments', { token })
       setSegments(refreshed.segments)
       setModalOpen(false)
-      showToast('success', 'Segment created successfully.')
+      setToast({ type: 'success', message: 'Segment created successfully.' })
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Failed to create segment')
+      setToast({ type: 'error', message: e instanceof Error ? e.message : 'Failed to create segment' })
     }
   }
+
+  if (loading)
+    return (
+      <div className="contact-segments-page">
+        <header className="contact-segments-header">
+          <div>
+            <div className="skeleton contact-segments-title-skeleton" />
+            <div className="skeleton contact-segments-desc-skeleton" />
+          </div>
+        </header>
+        <div className="contact-segments-grid">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="segment-card segment-card-skeleton">
+              <div className="skeleton segment-name-skeleton" />
+              <div className="skeleton segment-desc-skeleton-block" />
+              <div className="skeleton segment-criteria-skeleton" />
+              <div className="skeleton segment-footer-skeleton" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
 
   return (
     <div className="contact-segments-page">
@@ -103,16 +125,41 @@ export const ContactSegments: React.FC = () => {
         <CreateSegmentModal onClose={() => setModalOpen(false)} onCreate={handleCreateSegment} />
       )}
 
-      {toast.show && (
-        <div className={`segment-toast segment-toast-${toast.type}`} role="alert">
-          {toast.message}
-        </div>
+      {toast && (
+        <SegmentToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
 
       {viewSegment && (
         <SegmentDetailsModal segment={viewSegment} onClose={() => setViewSegment(null)} />
       )}
     </div>
+  )
+}
+
+type SegmentToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const SegmentToast: React.FC<SegmentToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`segment-toast segment-toast-${type}`} role="status">
+      <span className="segment-toast-message">{message}</span>
+      <button type="button" className="segment-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }
 

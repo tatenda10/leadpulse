@@ -13,34 +13,46 @@
 }
 
 .login-left {
-  flex: 0 0 40%;
-  background: var(--sidebar-bg);
+  flex: 0 0 50%;
+  background: linear-gradient(160deg, var(--sidebar-bg) 0%, #0f172a 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-4);
+  padding: var(--space-5);
   text-align: center;
+  position: relative;
+}
+
+.login-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .login-left-title {
   margin: 0 0 var(--space-3) 0;
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   font-weight: 800;
   color: #fff;
+  letter-spacing: -0.02em;
+  position: relative;
 }
 
 .login-left-tagline {
-  margin: 0 0 var(--space-5) 0;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.0625rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.5;
-  max-width: 320px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+  max-width: 340px;
+  position: relative;
 }
 
 .login-right {
-  flex: 1 1 60%;
+  flex: 1 1 50%;
   background: var(--card-bg);
   display: flex;
   align-items: center;
@@ -55,20 +67,16 @@
 
 .login-logo {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-2);
+  justify-content: center;
   margin-bottom: var(--space-3);
 }
 
-.login-logo .logo-svg {
-  flex-shrink: 0;
-}
-
-.login-logo-text {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--text-primary);
+.login-logo .logo-img {
+  display: block;
+  height: 112px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
 }
 
 .login-welcome {
@@ -163,14 +171,17 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-1) var(--space-2);
   background: var(--sidebar-hover);
   color: rgba(255, 255, 255, 0.95);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
-.login-footer-brand {
-  font-weight: 700;
+.login-footer .logo-img {
+  height: var(--space-3);
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .login-footer-copy {
@@ -195,6 +206,7 @@
   .login-footer {
     flex-direction: column;
     gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
     text-align: center;
   }
 }

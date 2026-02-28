@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineTag, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineTag, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
 import './LeadTags.css'
+import './ContactSegments.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -18,10 +20,12 @@ const TAG_COLORS = ['#7c3aed', '#ef4444', '#22c55e', '#f59e0b', '#3b82f6', '#ec4
 export const LeadTags: React.FC = () => {
   const { token } = useAuth()
   const [tags, setTags] = useState<Tag[]>([])
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingTag, setEditingTag] = useState<Tag | null>(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -49,9 +53,10 @@ export const LeadTags: React.FC = () => {
     try {
       await apiRequest(`/settings/lead-tags/${id}`, { method: 'DELETE', token })
       setTags((prev) => prev.filter((t) => t.id !== id))
-      setEditingId(null)
+      setDeleteConfirmId(null)
+      setToast({ message: 'Tag deleted', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete tag')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to delete tag', type: 'error' })
     }
   }
 
@@ -64,9 +69,10 @@ export const LeadTags: React.FC = () => {
         token,
       })
       setTags((prev) => prev.map((t) => (t.id === id ? response.tag : t)))
-      setEditingId(null)
+      setEditingTag(null)
+      setToast({ message: 'Tag updated', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save tag')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save tag', type: 'error' })
     }
   }
 
@@ -80,8 +86,9 @@ export const LeadTags: React.FC = () => {
       })
       setTags((prev) => [response.tag, ...prev])
       setIsAdding(false)
+      setToast({ message: 'Tag added', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to add tag')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to add tag', type: 'error' })
     }
   }
 
@@ -103,35 +110,41 @@ export const LeadTags: React.FC = () => {
         </button>
       </header>
 
-      {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {error && <div className="lead-tags-error">{error}</div>}
+
+      {isAdding && (
+        <AddLeadTagModal
+          onClose={() => setIsAdding(false)}
+          onSave={(name, color) => void addTag(name, color)}
+        />
+      )}
+
+      {editingTag && (
+        <EditLeadTagModal
+          tag={editingTag}
+          onClose={() => setEditingTag(null)}
+          onSave={(name, color) => void saveTag(editingTag.id, name, color)}
+        />
+      )}
+
+      {deleteConfirmId && (
+        <DeleteLeadTagModal
+          onClose={() => setDeleteConfirmId(null)}
+          onConfirm={() => void deleteTag(deleteConfirmId)}
+        />
+      )}
+
+      {toast && (
+        <LeadTagsToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
       {loading ? (
         <div className="lead-tags-empty"><p>Loading tags...</p></div>
-      ) : (
-      <div className="lead-tags-list">
-        {isAdding && (
-          <TagCard
-            isNew
-            tag={{ id: 'new', name: '', color: TAG_COLORS[0] }}
-            onSave={(name, color) => void addTag(name, color)}
-            onCancel={() => setIsAdding(false)}
-          />
-        )}
-        {tags.map((tag) => (
-          <TagCard
-            key={tag.id}
-            tag={tag}
-            isEditing={editingId === tag.id}
-            onEdit={() => setEditingId(tag.id)}
-            onDelete={() => void deleteTag(tag.id)}
-            onSave={(name, color) => void saveTag(tag.id, name, color)}
-            onCancel={() => setEditingId(null)}
-          />
-        ))}
-      </div>
-      )}
-
-      {tags.length === 0 && !isAdding && !loading && (
+      ) : tags.length === 0 && !isAdding ? (
         <div className="lead-tags-empty">
           <HiOutlineTag size={48} className="empty-icon" />
           <p>No tags yet</p>
@@ -141,73 +154,256 @@ export const LeadTags: React.FC = () => {
             Add your first tag
           </button>
         </div>
+      ) : (
+        <div className="lead-tags-list">
+          {tags.map((tag) => (
+            <TagCard
+              key={tag.id}
+              tag={tag}
+              onEdit={() => setEditingTag(tag)}
+              onDelete={() => setDeleteConfirmId(tag.id)}
+            />
+          ))}
+        </div>
       )}
     </div>
   )
 }
 
-type TagCardProps = {
-  tag: Tag
-  isNew?: boolean
-  isEditing?: boolean
-  onEdit?: () => void
-  onDelete?: () => void
-  onSave?: (name: string, color: string) => void
-  onCancel?: () => void
+type AddLeadTagModalProps = {
+  onClose: () => void
+  onSave: (name: string, color: string) => void
 }
 
-const TagCard: React.FC<TagCardProps> = ({ tag, isNew, isEditing, onEdit, onDelete, onSave, onCancel }) => {
-  const [name, setName] = useState(tag.name)
-  const [color, setColor] = useState(tag.color)
-  const canEdit = isNew ?? isEditing
-
-  const handleSave = () => {
-    if (name.trim() && onSave) onSave(name.trim(), color)
-  }
+const AddLeadTagModal: React.FC<AddLeadTagModalProps> = ({ onClose, onSave }) => {
+  const [name, setName] = useState('')
+  const [color, setColor] = useState(TAG_COLORS[0])
 
   const canSave = name.trim().length > 0
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    onSave(name.trim(), color)
+  }
+
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="lead-tags-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="add-lead-tag-title">
+          <div className="segment-modal-header">
+            <h2 id="add-lead-tag-title" className="segment-modal-title">Add tag</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <form id="add-lead-tag-form" onSubmit={handleSubmit} className="segment-modal-body">
+            <div className="segment-modal-field">
+              <label htmlFor="lead-tag-name">
+                Tag name <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="lead-tag-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. high-intent"
+              />
+            </div>
+            <div className="segment-modal-field">
+              <label>Color</label>
+              <div className="tag-color-options">
+                {TAG_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`tag-color-btn ${color === c ? 'active' : ''}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setColor(c)}
+                  />
+                ))}
+              </div>
+            </div>
+          </form>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="add-lead-tag-form"
+              className="segment-modal-btn segment-modal-btn-primary"
+              disabled={!canSave}
+            >
+              Add tag
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type EditLeadTagModalProps = {
+  tag: Tag
+  onClose: () => void
+  onSave: (name: string, color: string) => void
+}
+
+const EditLeadTagModal: React.FC<EditLeadTagModalProps> = ({ tag, onClose, onSave }) => {
+  const [name, setName] = useState(tag.name)
+  const [color, setColor] = useState(tag.color)
+
+  const canSave = name.trim().length > 0
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!canSave) return
+    onSave(name.trim(), color)
+  }
+
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="lead-tags-modal-center">
+        <div className="segment-modal" role="dialog" aria-modal="true" aria-labelledby="edit-lead-tag-title">
+          <div className="segment-modal-header">
+            <h2 id="edit-lead-tag-title" className="segment-modal-title">Edit tag</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <form id="edit-lead-tag-form" onSubmit={handleSubmit} className="segment-modal-body">
+            <div className="segment-modal-field">
+              <label htmlFor="edit-lead-tag-name">
+                Tag name <span className="segment-field-required">*</span>
+              </label>
+              <input
+                id="edit-lead-tag-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. high-intent"
+              />
+            </div>
+            <div className="segment-modal-field">
+              <label>Color</label>
+              <div className="tag-color-options">
+                {TAG_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`tag-color-btn ${color === c ? 'active' : ''}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setColor(c)}
+                  />
+                ))}
+              </div>
+            </div>
+          </form>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="edit-lead-tag-form"
+              className="segment-modal-btn segment-modal-btn-primary"
+              disabled={!canSave}
+            >
+              Save
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type DeleteLeadTagModalProps = {
+  onClose: () => void
+  onConfirm: () => void
+}
+
+const DeleteLeadTagModal: React.FC<DeleteLeadTagModalProps> = ({ onClose, onConfirm }) => {
+  return createPortal(
+    <>
+      <div className="segment-modal-overlay" onClick={onClose} aria-hidden="true" />
+      <div className="lead-tags-modal-center">
+        <div className="segment-modal delete-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-lead-tag-title">
+          <div className="segment-modal-header">
+            <h2 id="delete-lead-tag-title" className="segment-modal-title">Delete tag</h2>
+            <button type="button" className="segment-modal-close" onClick={onClose} aria-label="Close">
+              <HiOutlineX size={20} />
+            </button>
+          </div>
+          <div className="segment-modal-body">
+            <p className="delete-confirm-text">Are you sure you want to delete this tag? This cannot be undone.</p>
+          </div>
+          <footer className="segment-modal-footer">
+            <button type="button" className="segment-modal-btn segment-modal-btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="segment-modal-btn segment-modal-btn-danger"
+              onClick={() => {
+                onConfirm()
+                onClose()
+              }}
+            >
+              Delete
+            </button>
+          </footer>
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+type LeadTagsToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const LeadTagsToast: React.FC<LeadTagsToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`lead-tags-toast lead-tags-toast-${type}`} role="status">
+      <span className="lead-tags-toast-message">{message}</span>
+      <button type="button" className="lead-tags-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
+  )
+}
+
+type TagCardProps = {
+  tag: Tag
+  onEdit?: () => void
+  onDelete?: () => void
+}
+
+const TagCard: React.FC<TagCardProps> = ({ tag, onEdit, onDelete }) => {
   return (
     <div className="tag-card">
       <div className="tag-card-header">
-        {!canEdit ? (
-          <>
-            <span className="tag-pill" style={{ backgroundColor: tag.color }}>{tag.name}</span>
-            <div className="tag-actions">
-              <button type="button" className="icon-btn" onClick={onEdit} title="Edit"><HiOutlinePencil size={16} /></button>
-              <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete"><HiOutlineTrash size={16} /></button>
-            </div>
-          </>
-        ) : (
-          <span className="tag-new-label">{isNew ? 'New tag' : 'Editing'}</span>
-        )}
-      </div>
-      {canEdit && (
-        <div className="tag-card-body">
-          <div className="tag-field">
-            <label>Tag name</label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. high-intent" />
-          </div>
-          <div className="tag-field">
-            <label>Color</label>
-            <div className="tag-color-options">
-              {TAG_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`tag-color-btn ${color === c ? 'active' : ''}`}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setColor(c)}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="tag-footer">
-            <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
-            <button type="button" className="btn-primary" onClick={handleSave} disabled={!canSave}>{isNew ? 'Add' : 'Save'}</button>
-          </div>
+        <span className="tag-pill" style={{ backgroundColor: tag.color }}>{tag.name}</span>
+        <div className="tag-actions">
+          <button type="button" className="icon-btn" onClick={onEdit} title="Edit"><HiOutlinePencil size={16} /></button>
+          <button type="button" className="icon-btn danger" onClick={onDelete} title="Delete"><HiOutlineTrash size={16} /></button>
         </div>
-      )}
+      </div>
     </div>
   )
 }

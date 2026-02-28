@@ -65,6 +65,7 @@ router.put('/settings/bot-status', authMiddleware, settingsController.updateBotS
 router.get('/contacts', authMiddleware, contactsController.listContacts);
 router.post('/contacts', authMiddleware, contactsController.createContact);
 router.patch('/contacts/:id', authMiddleware, contactsController.updateContact);
+router.delete('/contacts/:id', authMiddleware, contactsController.deleteContact);
 
 router.get('/contacts/notes', authMiddleware, contactsController.listContactNotes);
 router.post('/contacts/notes', authMiddleware, contactsController.createContactNote);

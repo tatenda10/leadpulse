@@ -827,43 +827,90 @@ export const AllCampaigns: React.FC = () => {
     <div className="all-campaigns-page">
       <header className="all-campaigns-header">
         <div>
-          <h1 className="all-campaigns-title">
-            <HiOutlineSpeakerphone size={24} />
-            All Campaigns
-          </h1>
-          <p className="all-campaigns-desc">
-            Track your Facebook ad campaigns and other lead sources sending traffic to WhatsApp.
-          </p>
-          <p className="all-campaigns-desc">
-            {connected ? 'Facebook connected' : 'Facebook not connected'}
-            {lastSyncedAt ? ` | Last sync ${new Date(lastSyncedAt).toLocaleString()}` : ''}
-          </p>
+          {loading ? (
+            <>
+              <div className="skeleton all-campaigns-title-skeleton" />
+              <div className="skeleton all-campaigns-desc-skeleton" />
+              <div className="skeleton all-campaigns-status-skeleton" />
+            </>
+          ) : (
+            <>
+              <h1 className="all-campaigns-title">
+                <HiOutlineSpeakerphone size={24} />
+                All Campaigns
+              </h1>
+              <p className="all-campaigns-desc">
+                Track your Facebook ad campaigns and other lead sources sending traffic to WhatsApp.
+              </p>
+              <p className="all-campaigns-desc">
+                {connected ? 'Facebook connected' : 'Facebook not connected'}
+                {lastSyncedAt ? ` | Last sync ${new Date(lastSyncedAt).toLocaleString()}` : ''}
+              </p>
+            </>
+          )}
         </div>
         <div className="all-campaigns-actions">
-          <button type="button" className="all-campaigns-add-btn" onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Syncing...' : 'Sync now'}
+          <button
+            type="button"
+            className="all-campaigns-add-btn"
+            onClick={handleSync}
+            disabled={syncing || loading}
+          >
+            {loading ? 'Sync now' : syncing ? 'Syncing...' : 'Sync now'}
           </button>
         </div>
       </header>
 
-      <div className="all-campaigns-filters">
-        {(['all', 'active', 'paused'] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            className={`filter-btn ${filter === f ? 'active' : ''}`}
-            onClick={() => setFilter(f)}
-          >
-            {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Paused'}
-          </button>
-        ))}
-      </div>
+      {!loading && (
+        <div className="all-campaigns-filters">
+          {(['all', 'active', 'paused'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`filter-btn ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+            >
+              {f === 'all' ? 'All' : f === 'active' ? 'Active' : 'Paused'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && <div className="all-campaigns-empty">{error}</div>}
-      {loading && <div className="all-campaigns-empty">Loading campaigns...</div>}
 
-      <div className="all-campaigns-grid">
-        {filteredCampaigns.map((campaign) => (
+      {loading ? (
+        <div className="all-campaigns-grid">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="campaign-card campaign-card-skeleton">
+              <div className="campaign-card-header">
+                <div className="skeleton campaign-source-skeleton" />
+                <div className="skeleton campaign-status-skeleton" />
+              </div>
+              <div className="skeleton campaign-name-skeleton" />
+              <div className="campaign-stats">
+                <div className="campaign-stat">
+                  <span className="skeleton campaign-stat-value-skeleton" />
+                  <span className="skeleton campaign-stat-label-skeleton" />
+                </div>
+                <div className="campaign-stat">
+                  <span className="skeleton campaign-stat-value-skeleton" />
+                  <span className="skeleton campaign-stat-label-skeleton" />
+                </div>
+                <div className="campaign-stat">
+                  <span className="skeleton campaign-stat-value-skeleton" />
+                  <span className="skeleton campaign-stat-label-skeleton" />
+                </div>
+              </div>
+              <div className="campaign-footer">
+                <span className="skeleton campaign-started-skeleton" />
+                <span className="skeleton campaign-link-btn-skeleton" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="all-campaigns-grid">
+          {filteredCampaigns.map((campaign) => (
           <button
             key={campaign.id}
             type="button"
@@ -921,7 +968,8 @@ export const AllCampaigns: React.FC = () => {
             </div>
           </button>
         ))}
-      </div>
+        </div>
+      )}
 
       {!loading && filteredCampaigns.length === 0 && (
         <div className="all-campaigns-empty">

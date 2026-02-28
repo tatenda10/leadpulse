@@ -91,6 +91,80 @@
   margin-bottom: var(--space-2);
 }
 
+/* Skeleton states */
+.analytics-title-skeleton {
+  height: 24px;
+  width: 220px;
+  border-radius: var(--space-1);
+}
+
+.analytics-desc-skeleton {
+  height: 16px;
+  width: 320px;
+  max-width: 100%;
+  border-radius: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.analytics-kpi-card-skeleton {
+  position: relative;
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.analytics-kpi-icon-skeleton {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+}
+
+.analytics-kpi-label-skeleton {
+  height: 14px;
+  width: 70%;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.analytics-kpi-value-skeleton {
+  height: 28px;
+  width: 60px;
+  border-radius: var(--space-1);
+}
+
+.analytics-kpi-change-skeleton {
+  height: 12px;
+  width: 100px;
+  border-radius: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.analytics-chart-card-skeleton {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-height: 320px;
+}
+
+.analytics-chart-title-skeleton {
+  height: 16px;
+  width: 180px;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.analytics-chart-area-skeleton {
+  height: 280px;
+  border-radius: var(--space-1);
+}
+
 @media (max-width: 900px) {
   .analytics-charts {
     grid-template-columns: 1fr;

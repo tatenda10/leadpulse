@@ -65,12 +65,40 @@ export const Performance: React.FC = () => {
     ]
   }, [data])
 
-  if (loading) return <div className="performance-page"><div className="chart-card">Loading performance...</div></div>
+  if (loading)
+    return (
+      <div className="performance-page">
+        <div className="performance-header">
+          <div className="skeleton performance-title-skeleton" />
+          <div className="skeleton performance-desc-skeleton" />
+        </div>
+        <div className="performance-cards">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="perf-card perf-card-skeleton">
+              <div className="skeleton perf-card-icon-skeleton" />
+              <div className="skeleton perf-card-label-skeleton" />
+              <div className="skeleton perf-card-value-skeleton" />
+            </div>
+          ))}
+        </div>
+        <div className="performance-charts">
+          <div className="chart-card chart-wide chart-skeleton skeleton" />
+          <div className="chart-card chart-skeleton skeleton" />
+        </div>
+        <div className="performance-charts">
+          <div className="chart-card chart-full chart-skeleton skeleton" />
+        </div>
+      </div>
+    )
   if (error) return <div className="performance-page"><div className="chart-card">{error}</div></div>
   if (!data) return <div className="performance-page"><div className="chart-card">No data available</div></div>
 
   return (
     <div className="performance-page">
+      <div className="performance-header">
+        <h1 className="performance-title">Performance</h1>
+        <p className="performance-desc">See how your bot and team are performing over time.</p>
+      </div>
       <div className="performance-cards">
         {perfCards.map((card) => {
           const Icon = card.icon

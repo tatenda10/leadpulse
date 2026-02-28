@@ -1,29 +1,32 @@
+/* Page layout: fills available space, container takes the rest — matches AutoReplies */
 .keyword-triggers-page {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .keyword-triggers-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
+}
+
+.keyword-triggers-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .keyword-triggers-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-1) 0;
+  margin: 0;
   font-size: 20px;
   font-weight: 800;
   color: var(--text-primary);
-}
-
-.keyword-triggers-title svg {
-  color: var(--text-accent);
 }
 
 .keyword-triggers-desc {
@@ -31,6 +34,25 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+.keyword-triggers-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  background: var(--card-bg);
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  padding: var(--space-3);
+}
+
+.keyword-triggers-error {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .keyword-triggers-add-btn {
@@ -52,6 +74,9 @@
 }
 
 .keyword-triggers-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -59,7 +84,7 @@
 
 .keyword-trigger-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -158,74 +183,6 @@
   gap: var(--space-2);
 }
 
-.keyword-trigger-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.keyword-trigger-field label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.keyword-trigger-field input,
-.keyword-trigger-field select,
-.keyword-trigger-field textarea {
-  padding: var(--space-2) var(--space-3);
-  font-size: 14px;
-  font-family: var(--font-family);
-  border: 1px solid var(--border-color);
-  border-radius: var(--space-1);
-}
-
-.keyword-trigger-field textarea {
-  resize: vertical;
-  min-height: 72px;
-}
-
-.keyword-trigger-card-footer {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.keyword-trigger-card .btn-primary {
-  padding: var(--space-2) var(--space-3);
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--space-1);
-  border: none;
-  background: var(--text-accent);
-  color: #fff;
-  cursor: pointer;
-}
-
-.keyword-trigger-card .btn-primary:hover:not(:disabled) {
-  background: #6d28d9;
-}
-
-.keyword-trigger-card .btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.keyword-trigger-card .btn-secondary {
-  padding: var(--space-2) var(--space-3);
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: var(--space-1);
-  border: 1px solid var(--border-color);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.keyword-trigger-card .btn-secondary:hover {
-  background: var(--main-bg);
-}
-
 .keyword-trigger-preview {
   display: flex;
   flex-direction: column;
@@ -247,6 +204,7 @@
 
 .keyword-triggers-empty {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -254,11 +212,12 @@
   gap: var(--space-2);
   padding: var(--space-5);
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px dashed var(--border-color);
   color: var(--text-light);
   font-size: 14px;
   font-weight: 600;
+  text-align: center;
 }
 
 .keyword-triggers-empty .empty-icon {
@@ -288,4 +247,129 @@
 
 .keyword-triggers-empty .empty-add-btn:hover {
   background: #6d28d9;
+}
+
+/* Modal center — matches AutoReplies autoreply-modal-center */
+.keyword-trigger-modal-center {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.keyword-trigger-modal-center .segment-modal {
+  pointer-events: auto;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+/* Delete confirmation modal — portaled to body */
+.delete-confirm-modal {
+  width: min(400px, calc(100vw - var(--space-4)));
+}
+
+.delete-confirm-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.segment-modal-btn-danger {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+}
+
+.segment-modal-btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Toast — top right, portaled to body, matches AutoReplies */
+.toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: keyword-toast-in 0.25s ease;
+}
+
+@keyframes keyword-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Modal field emphasis — match AutoReplies */
+#keyword-trigger-keywords,
+#keyword-trigger-action,
+#keyword-trigger-reply,
+#keyword-trigger-menu-id,
+#edit-keyword-trigger-keywords,
+#edit-keyword-trigger-action,
+#edit-keyword-trigger-reply,
+#edit-keyword-trigger-menu-id {
+  font-weight: 600;
+  color: var(--text-primary);
 }

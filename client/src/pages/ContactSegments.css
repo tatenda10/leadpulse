@@ -128,11 +128,66 @@
   background: rgba(124, 58, 237, 0.08);
 }
 
+/* Skeleton states */
+.contact-segments-title-skeleton {
+  height: 24px;
+  width: 180px;
+  border-radius: var(--space-1);
+}
+
+.contact-segments-desc-skeleton {
+  height: 16px;
+  width: 320px;
+  max-width: 100%;
+  border-radius: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.segment-card-skeleton {
+  background: var(--card-bg);
+  border-radius: var(--space-2);
+  border: 1px solid var(--border-color);
+  padding: var(--space-3);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-height: 140px;
+}
+
+.segment-name-skeleton {
+  height: 18px;
+  width: 60%;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.segment-desc-skeleton-block {
+  height: 14px;
+  width: 90%;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.segment-criteria-skeleton {
+  height: 12px;
+  width: 80px;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.segment-footer-skeleton {
+  height: 14px;
+  width: 100px;
+  border-radius: var(--space-1);
+  margin-top: var(--space-2);
+}
+
 /* Toast (top right) */
 .segment-toast {
   position: fixed;
   top: var(--space-3);
   right: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   font-size: 14px;
   font-weight: 600;
@@ -140,6 +195,25 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 10002;
   animation: segment-toast-in 0.25s ease;
+}
+
+.segment-toast-message {
+  flex: 1;
+}
+
+.segment-toast-close {
+  display: inline-flex;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--space-1);
+  color: inherit;
+  opacity: 0.85;
+}
+
+.segment-toast-close:hover {
+  opacity: 1;
 }
 
 .segment-toast-success {

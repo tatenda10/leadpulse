@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { HiOutlineChatAlt } from 'react-icons/hi'
+import { createPortal } from 'react-dom'
+import { HiOutlineChatAlt, HiOutlineX } from 'react-icons/hi'
 import './WelcomeMessage.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,6 +17,7 @@ export const WelcomeMessage: React.FC = () => {
   const [saved, setSaved] = useState(true)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -48,9 +50,23 @@ export const WelcomeMessage: React.FC = () => {
     setSaved(false)
   }
 
-  const handleEnabledChange = (value: boolean) => {
+  const handleEnabledChange = async (value: boolean) => {
     setEnabled(value)
     setSaved(false)
+    if (!token) return
+    try {
+      await apiRequest<BotMessageResponse>('/settings/welcome-message', {
+        method: 'PUT',
+        body: { message, enabled: value },
+        token,
+      })
+      setSaved(true)
+      setError(null)
+      setToast({ message: value ? 'Welcome message enabled' : 'Welcome message paused', type: 'success' })
+    } catch (e) {
+      setEnabled(!value)
+      setToast({ message: e instanceof Error ? e.message : 'Failed to update', type: 'error' })
+    }
   }
 
   const handleSave = async () => {
@@ -63,8 +79,9 @@ export const WelcomeMessage: React.FC = () => {
       })
       setSaved(true)
       setError(null)
+      setToast({ message: 'Changes saved', type: 'success' })
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save welcome message')
+      setToast({ message: e instanceof Error ? e.message : 'Failed to save welcome message', type: 'error' })
     }
   }
 
@@ -84,9 +101,18 @@ export const WelcomeMessage: React.FC = () => {
 
       {error && <div style={{ color: '#b91c1c', fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
-      {loading ? (
-        <div className="welcome-message-card"><p>Loading welcome message...</p></div>
-      ) : (
+      {toast && (
+        <WelcomeToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="welcome-message-body">
+        {loading ? (
+          <div className="welcome-message-card"><p>Loading welcome message...</p></div>
+        ) : (
       <div className="welcome-message-content">
         <div className="welcome-message-card">
           <div className="welcome-message-card-header">
@@ -94,7 +120,7 @@ export const WelcomeMessage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => handleEnabledChange(e.target.checked)}
+                onChange={(e) => void handleEnabledChange(e.target.checked)}
               />
               <span className="toggle-slider" />
             </label>
@@ -134,7 +160,31 @@ export const WelcomeMessage: React.FC = () => {
           </div>
         </div>
       </div>
-      )}
+        )}
+      </div>
     </div>
+  )
+}
+
+type WelcomeToastProps = {
+  message: string
+  type: 'success' | 'error'
+  onClose: () => void
+}
+
+const WelcomeToast: React.FC<WelcomeToastProps> = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000)
+    return () => clearTimeout(t)
+  }, [onClose])
+
+  return createPortal(
+    <div className={`welcome-toast welcome-toast-${type}`} role="status">
+      <span className="welcome-toast-message">{message}</span>
+      <button type="button" className="welcome-toast-close" onClick={onClose} aria-label="Close">
+        <HiOutlineX size={18} />
+      </button>
+    </div>,
+    document.body
   )
 }

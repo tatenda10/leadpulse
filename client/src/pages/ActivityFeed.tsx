@@ -56,7 +56,26 @@ export const ActivityFeed: React.FC = () => {
     }
   }, [token])
 
-  if (loading) return <div className="activity-feed"><div className="activity-item">Loading activity...</div></div>
+  if (loading)
+    return (
+      <div className="activity-feed">
+        <div className="activity-feed-header">
+          <div className="skeleton activity-title-skeleton" />
+        </div>
+        <div className="activity-list">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="activity-item activity-item-skeleton">
+              <div className="activity-icon-wrap skeleton activity-icon-skeleton" />
+              <div className="activity-content">
+                <div className="skeleton activity-line-skeleton" />
+                <div className="skeleton activity-line-skeleton short" />
+              </div>
+              <div className="skeleton activity-time-skeleton" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   if (error) return <div className="activity-feed"><div className="activity-item">{error}</div></div>
 
   return (

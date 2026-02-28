@@ -630,3 +630,76 @@
     text-align: left;
   }
 }
+
+/* Skeleton states */
+.all-campaigns-title-skeleton {
+  height: 24px;
+  width: 200px;
+  border-radius: var(--space-1);
+}
+
+.all-campaigns-desc-skeleton {
+  height: 16px;
+  width: 360px;
+  max-width: 100%;
+  border-radius: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.all-campaigns-status-skeleton {
+  height: 14px;
+  width: 260px;
+  max-width: 100%;
+  border-radius: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.campaign-card-skeleton {
+  cursor: default;
+}
+
+.campaign-source-skeleton {
+  height: 16px;
+  width: 140px;
+  border-radius: var(--space-1);
+}
+
+.campaign-status-skeleton {
+  height: 14px;
+  width: 70px;
+  border-radius: var(--space-1);
+}
+
+.campaign-name-skeleton {
+  height: 18px;
+  width: 70%;
+  border-radius: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.campaign-stat-value-skeleton {
+  display: inline-block;
+  height: 16px;
+  width: 60px;
+  border-radius: var(--space-1);
+}
+
+.campaign-stat-label-skeleton {
+  display: inline-block;
+  height: 12px;
+  width: 70px;
+  border-radius: var(--space-1);
+  margin-top: 4px;
+}
+
+.campaign-started-skeleton {
+  height: 12px;
+  width: 120px;
+  border-radius: var(--space-1);
+}
+
+.campaign-link-btn-skeleton {
+  height: 22px;
+  width: 32px;
+  border-radius: var(--space-1);
+}

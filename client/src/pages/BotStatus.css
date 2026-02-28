@@ -2,9 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .bot-status-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -32,6 +36,26 @@
   color: var(--text-secondary);
 }
 
+/* Container — same corners/layout as auto-replies-container */
+.bot-status-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  background: var(--card-bg);
+  border-radius: var(--space-1);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  padding: var(--space-3);
+}
+
+.bot-status-error {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .bot-status-content {
   display: flex;
   flex-direction: column;
@@ -40,7 +64,7 @@
 
 .bot-status-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -239,6 +263,10 @@
   cursor: not-allowed;
 }
 
+.bot-status-save-wrap {
+  margin-top: 12px;
+}
+
 .bot-stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -250,10 +278,75 @@
   align-items: center;
   gap: var(--space-2);
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Toast — top right, matches AutoReplies/WelcomeMessage */
+.bot-status-toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: bot-status-toast-in 0.25s ease;
+}
+
+@keyframes bot-status-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bot-status-toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.bot-status-toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.bot-status-toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bot-status-toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.bot-status-toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .bot-stat-icon {

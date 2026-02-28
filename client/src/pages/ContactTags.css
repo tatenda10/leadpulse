@@ -33,6 +33,13 @@
   color: var(--text-secondary);
 }
 
+.contact-tags-error {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
 .contact-tags-add-btn {
   display: inline-flex;
   align-items: center;
@@ -59,7 +66,7 @@
 
 .contact-tag-card {
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -168,6 +175,117 @@
   margin-top: var(--space-1);
 }
 
+/* Modal center for contact tags (Add/Edit/Delete) */
+.contact-tags-modal-center {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.contact-tags-modal-center .segment-modal {
+  pointer-events: auto;
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+.delete-confirm-modal {
+  width: min(400px, calc(100vw - var(--space-4)));
+}
+
+.delete-confirm-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.segment-modal-btn-danger {
+  padding: var(--space-2) var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--space-1);
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+}
+
+.segment-modal-btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* Toast — top right */
+.contact-tags-toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: contact-tags-toast-in 0.25s ease;
+}
+
+@keyframes contact-tags-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.contact-tags-toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.contact-tags-toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.contact-tags-toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.contact-tags-toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.contact-tags-toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+}
+
 .contact-tag-card .btn-primary {
   padding: var(--space-2) var(--space-3);
   font-size: 14px;
@@ -201,4 +319,39 @@
 
 .contact-tag-card .btn-secondary:hover {
   background: var(--main-bg);
+}
+
+/* Skeleton states */
+.contact-tags-title-skeleton {
+  height: 24px;
+  width: 80px;
+  border-radius: var(--space-1);
+}
+
+.contact-tags-desc-skeleton {
+  height: 16px;
+  width: 280px;
+  max-width: 100%;
+  border-radius: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.contact-tag-card-skeleton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  min-height: 56px;
+}
+
+.contact-tag-pill-skeleton {
+  height: 28px;
+  width: 100px;
+  border-radius: var(--space-1);
+}
+
+.contact-tag-count-skeleton {
+  height: 14px;
+  width: 60px;
+  border-radius: var(--space-1);
 }

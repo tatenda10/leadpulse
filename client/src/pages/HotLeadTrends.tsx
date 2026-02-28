@@ -51,7 +51,35 @@ export const HotLeadTrends: React.FC = () => {
     ]
   }, [data])
 
-  if (loading) return <div className="analytics-page"><div className="analytics-chart-card">Loading...</div></div>
+  if (loading)
+    return (
+      <div className="analytics-page">
+        <header className="analytics-header">
+          <div className="skeleton analytics-title-skeleton" />
+          <div className="skeleton analytics-desc-skeleton" />
+        </header>
+        <div className="analytics-kpis">
+          {Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="analytics-kpi-card analytics-kpi-card-skeleton">
+              <div className="skeleton analytics-kpi-icon-skeleton" />
+              <div className="skeleton analytics-kpi-label-skeleton" />
+              <div className="skeleton analytics-kpi-value-skeleton" />
+              <div className="skeleton analytics-kpi-change-skeleton" />
+            </div>
+          ))}
+        </div>
+        <div className="analytics-charts">
+          <div className="analytics-chart-card chart-wide analytics-chart-card-skeleton">
+            <div className="skeleton analytics-chart-title-skeleton" />
+            <div className="skeleton analytics-chart-area-skeleton" />
+          </div>
+          <div className="analytics-chart-card chart-wide analytics-chart-card-skeleton">
+            <div className="skeleton analytics-chart-title-skeleton" />
+            <div className="skeleton analytics-chart-area-skeleton" />
+          </div>
+        </div>
+      </div>
+    )
   if (error || !data) return <div className="analytics-page"><div className="analytics-chart-card">{error || 'No data'}</div></div>
 
   return (
@@ -89,7 +117,7 @@ export const HotLeadTrends: React.FC = () => {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="analytics-chart-card">
+        <div className="analytics-chart-card chart-wide">
           <div className="analytics-chart-title">Hot leads by source</div>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>

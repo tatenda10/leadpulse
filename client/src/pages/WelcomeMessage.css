@@ -2,9 +2,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .welcome-message-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -32,22 +36,39 @@
   color: var(--text-secondary);
 }
 
+.welcome-message-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.welcome-message-body > .welcome-message-card {
+  flex: 1;
+}
+
 .welcome-message-content {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: var(--space-3);
-  align-items: start;
+  align-items: stretch;
 }
 
 .welcome-message-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .welcome-message-card-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -107,6 +128,8 @@
 }
 
 .welcome-message-field {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -119,13 +142,20 @@
 }
 
 .welcome-message-field textarea {
+  flex: 1;
+  min-height: 120px;
   padding: var(--space-3);
   font-size: 14px;
   font-family: var(--font-family);
   border: 1px solid var(--border-color);
   border-radius: var(--space-1);
-  resize: vertical;
-  min-height: 120px;
+  resize: none;
+  outline: none;
+}
+
+.welcome-message-field textarea:focus {
+  border-color: var(--text-accent);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
 }
 
 .welcome-hint {
@@ -135,6 +165,7 @@
 }
 
 .welcome-message-footer {
+  flex-shrink: 0;
   margin-top: var(--space-3);
 }
 
@@ -159,14 +190,18 @@
 }
 
 .welcome-preview-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--card-bg);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   border: 1px solid var(--border-color);
   padding: var(--space-3);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .welcome-preview-title {
+  flex-shrink: 0;
   margin: 0 0 var(--space-2) 0;
   font-size: 14px;
   font-weight: 700;
@@ -174,6 +209,7 @@
 }
 
 .welcome-preview-label {
+  flex-shrink: 0;
   margin: 0 0 var(--space-2) 0;
   font-size: 12px;
   font-weight: 600;
@@ -181,10 +217,13 @@
 }
 
 .welcome-preview-bubble {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--space-3);
   background: rgba(124, 58, 237, 0.12);
   border: 1px solid rgba(124, 58, 237, 0.2);
-  border-radius: var(--space-2);
+  border-radius: var(--space-1);
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary);
@@ -193,6 +232,71 @@
 
 .welcome-preview-placeholder {
   color: var(--text-light);
+}
+
+/* Toast — top right */
+.welcome-toast {
+  position: fixed;
+  top: calc(var(--nav-height) + var(--space-2));
+  right: var(--space-3);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--space-1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  max-width: 360px;
+  animation: welcome-toast-in 0.25s ease;
+}
+
+@keyframes welcome-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.welcome-toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.welcome-toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.welcome-toast-message {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.welcome-toast-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  border-radius: var(--space-1);
+}
+
+.welcome-toast-close:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
 }
 
 @media (max-width: 900px) {

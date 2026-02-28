@@ -1,5 +1,5 @@
 import React from 'react'
-import { HiOutlineBell } from 'react-icons/hi'
+import { HiOutlineBell, HiOutlineChat } from 'react-icons/hi'
 import { Logo } from './Logo'
 import './TopNavBar.css'
 
@@ -8,6 +8,8 @@ type TopNavBarProps = {
   activeSectionLabel: string
   onSidebarToggle: () => void
   isSidebarHidden: boolean
+  liveChatsNow?: number
+  onNotificationsClick?: () => void
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({
@@ -15,6 +17,8 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   activeSectionLabel,
   onSidebarToggle,
   isSidebarHidden,
+  liveChatsNow = 0,
+  onNotificationsClick,
 }) => {
   return (
     <header className="top-nav">
@@ -22,7 +26,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <button
           type="button"
           className="mobile-menu-button"
-          aria-label="Open sidebar"
+          aria-label="Toggle sidebar"
           onClick={onMenuClick}
         >
           <span className="menu-icon-line" />
@@ -31,28 +35,29 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         </button>
         <div className="top-nav-mobile-logo">
           <Logo size="small" />
-          <span className="top-nav-mobile-title">LeadPulse</span>
         </div>
         <span className="top-nav-section-label">{activeSectionLabel}</span>
-      </div>
-      <div className="top-nav-center">
-        <div className="top-nav-search-wrapper">
-          <input
-            className="top-nav-search"
-            type="search"
-            placeholder="Search chats, contacts, campaigns..."
-          />
-        </div>
       </div>
       <div className="top-nav-right">
         <button type="button" className="sidebar-toggle-button" onClick={onSidebarToggle}>
           {isSidebarHidden ? 'Show Sidebar' : 'Hide Sidebar'}
         </button>
-        <div className="live-chats-pill">
-          <span className="live-dot" />
-          <span className="live-text">3 live chats</span>
-        </div>
-        <button type="button" className="icon-button" aria-label="Notifications">
+        <button
+          type="button"
+          className="icon-button live-chats-icon-button"
+          aria-label={`${liveChatsNow} live chat${liveChatsNow === 1 ? '' : 's'}`}
+        >
+          <HiOutlineChat size={20} className="live-chats-icon" />
+          {liveChatsNow > 0 && (
+            <span className="live-chats-counter">{liveChatsNow > 99 ? '99+' : liveChatsNow}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Notifications"
+          onClick={onNotificationsClick}
+        >
           <span className="notification-dot" />
           <HiOutlineBell size={20} className="notification-icon" />
         </button>

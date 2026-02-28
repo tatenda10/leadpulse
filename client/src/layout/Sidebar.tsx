@@ -30,6 +30,7 @@ import {
 } from 'react-icons/hi'
 import { SiFacebook, SiWhatsapp } from 'react-icons/si'
 import { Logo } from './Logo'
+import { useUnreadCount } from '../contexts/UnreadCountContext'
 import './Sidebar.css'
 import type { PrimarySection } from './sections'
 
@@ -51,9 +52,6 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
   ],
   conversations: [
     { key: 'all', label: 'All Chats', icon: <HiOutlineChat size={18} /> },
-    { key: 'hot', label: 'Hot Leads', icon: <HiOutlineFire size={18} /> },
-    { key: 'bot-handling', label: 'Bot Handling', icon: <HiOutlineChip size={18} /> },
-    { key: 'human-handling', label: 'Human Handling', icon: <HiOutlineUser size={18} /> },
     { key: 'unread', label: 'Unread', icon: <HiOutlineInbox size={18} /> },
   ],
   chatbot: [
@@ -67,13 +65,11 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
     { key: 'scoring', label: 'Scoring Rules', icon: <HiOutlineCalculator size={18} /> },
     { key: 'threshold', label: 'Hot Lead Threshold', icon: <HiOutlineLightningBolt size={18} /> },
     { key: 'weights', label: 'Keyword Weights', icon: <HiOutlineKey size={18} /> },
-    { key: 'timeline', label: 'Lead Timeline', icon: <HiOutlineClock size={18} /> },
     { key: 'tags', label: 'Tags', icon: <HiOutlineTag size={18} /> },
   ],
   campaigns: [
     { key: 'all-campaigns', label: 'All Campaigns', icon: <HiOutlineSpeakerphone size={18} /> },
     { key: 'facebook', label: 'Facebook Sources', icon: <SiFacebook size={18} /> },
-    { key: 'click-to-whatsapp', label: 'Click-to-WhatsApp Links', icon: <SiWhatsapp size={18} /> },
     { key: 'performance', label: 'Performance', icon: <HiOutlineChartBar size={18} /> },
   ],
   contacts: [
@@ -104,6 +100,8 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ open, setOpen, activeSection, activeSubMenu, onSubMenuSelect }) => {
+  const { unreadCount } = useUnreadCount()
+
   const handleNavClick = (key: string) => {
     onSubMenuSelect(key)
     if (window.innerWidth < 1024) {
@@ -118,10 +116,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, setOpen, activeSection, 
           <div className="logo-wrap">
             <Logo />
           </div>
-          <div className="logo-text">
-            <div className="logo-title">LeadPulse</div>
-            <div className="logo-subtitle">Smart WhatsApp Leads</div>
-          </div>
         </div>
         <nav className="sidebar-nav">
           {SIDEBAR_MENUS[activeSection].map((item) => (
@@ -133,6 +127,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, setOpen, activeSection, 
             >
               <span className="sidebar-nav-icon">{item.icon}</span>
               <span className="sidebar-nav-label">{item.label}</span>
+              {item.key === 'unread' && unreadCount > 0 && (
+                <span className="sidebar-nav-unread-badge">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>

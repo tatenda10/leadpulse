@@ -28,9 +28,9 @@ export const Login: React.FC = () => {
     <div className="login-page">
       <div className="login-main">
       <div className="login-left">
-        <h1 className="login-left-title">Hey There!</h1>
+        <h1 className="login-left-title">Lead Pulse</h1>
         <p className="login-left-tagline">
-          begin your amazing journey with us
+          Turn leads into customers. Manage contacts, run campaigns, and track what matters—all in one place.
         </p>
       </div>
 
@@ -38,7 +38,6 @@ export const Login: React.FC = () => {
         <div className="login-right-inner">
           <div className="login-logo">
             <Logo size="default" />
-            <span className="login-logo-text">LeadPulse</span>
           </div>
           <p className="login-welcome">Welcome back, good to see you again!</p>
 
@@ -75,7 +74,7 @@ export const Login: React.FC = () => {
       </div>
 
       <footer className="login-footer">
-        <span className="login-footer-brand">LeadPulse</span>
+        <Logo size="small" />
         <span className="login-footer-copy">© All rights reserved</span>
       </footer>
     </div>

@@ -60,6 +60,7 @@ body {
 
 .main-content-scrollable {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: calc(var(--nav-height) + var(--space-3)) var(--space-3) var(--space-3) var(--space-3);
   box-sizing: border-box;
