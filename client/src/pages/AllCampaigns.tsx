@@ -661,10 +661,25 @@ export const AllCampaigns: React.FC = () => {
                                           ? row.leads || 0
                                           : row.ctr || 0,
                                 }))}
+                                margin={{ top: 8, right: 8, left: 24, bottom: 32 }}
                               >
                                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                                <YAxis stroke="#64748b" fontSize={12} />
+                                <XAxis
+                                  dataKey="name"
+                                  stroke="#64748b"
+                                  fontSize={12}
+                                  label={{ value: 'Breakdown', position: 'insideBottom', offset: -8, style: { fontSize: 12, fill: '#64748b' } }}
+                                />
+                                <YAxis
+                                  stroke="#64748b"
+                                  fontSize={12}
+                                  label={{
+                                    value: graphMetric === 'spend' ? 'Spend' : graphMetric === 'clicks' ? 'Clicks' : graphMetric === 'leads' ? 'Leads' : 'CTR (%)',
+                                    angle: -90,
+                                    position: 'insideLeft',
+                                    style: { fontSize: 12, fill: '#64748b' },
+                                  }}
+                                />
                                 <Tooltip
                                   contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
                                   formatter={(value: number) =>
