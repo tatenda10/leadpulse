@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { HiOutlineExternalLink, HiOutlineSpeakerphone } from 'react-icons/hi'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { HiOutlineArrowLeft, HiOutlineChip, HiOutlineExternalLink, HiOutlineSpeakerphone, HiOutlineX } from 'react-icons/hi'
 import { SiFacebook } from 'react-icons/si'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
@@ -156,7 +157,6 @@ type BreakdownResponse = {
 
 type DetailsTab = 'campaign' | 'metrics' | 'adsets'
 type BreakdownPreset = 'audience' | 'geo' | 'placement' | 'time' | 'custom'
-type BreakdownView = 'graph' | 'table' | 'both'
 type ChatMessage = { role: 'bot' | 'user'; text: string }
 
 function formatDate(value?: string | null): string {
@@ -267,7 +267,6 @@ export const AllCampaigns: React.FC = () => {
   const [breakdownWarning, setBreakdownWarning] = useState<string | null>(null)
   const [breakdownPreset, setBreakdownPreset] = useState<BreakdownPreset>('geo')
   const [graphMetric, setGraphMetric] = useState<'spend' | 'clicks' | 'leads' | 'ctr'>('spend')
-  const [breakdownView, setBreakdownView] = useState<BreakdownView>('both')
   const [assistantMessages, setAssistantMessages] = useState<ChatMessage[]>([])
   const [assistantInput, setAssistantInput] = useState('')
   const [assistantOpen, setAssistantOpen] = useState(false)
@@ -369,7 +368,6 @@ export const AllCampaigns: React.FC = () => {
     setBreakdownError(null)
     setBreakdownWarning(null)
     setBreakdownPreset('geo')
-    setBreakdownView('both')
     setAssistantMessages([])
     setAssistantInput('')
     setAssistantOpen(false)
@@ -450,8 +448,16 @@ export const AllCampaigns: React.FC = () => {
             <h1 className="all-campaigns-title">{details?.name || 'Campaign Details'}</h1>
             <p className="all-campaigns-desc">Campaign breakdown with tabs for overview, metrics, and ad sets.</p>
           </div>
-          {details?.externalUrl && (
-            <div className="all-campaigns-actions">
+          <div className="all-campaigns-actions">
+            <button
+              type="button"
+              className="all-campaigns-back-btn"
+              onClick={() => setSelectedCampaignId(null)}
+            >
+              <HiOutlineArrowLeft size={18} />
+              Back
+            </button>
+            {details?.externalUrl && (
               <button
                 type="button"
                 className="all-campaigns-add-btn"
@@ -459,324 +465,351 @@ export const AllCampaigns: React.FC = () => {
               >
                 Open in Facebook
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
-        {detailsLoading && <div className="all-campaigns-empty">Loading details...</div>}
-        {detailsError && !detailsLoading && <div className="all-campaigns-empty">{detailsError}</div>}
-
-        {!detailsLoading && !detailsError && details && (
-          <div className="campaign-details-page">
-            <div className="campaign-tabs">
-              {(['campaign', 'metrics', 'adsets'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className={`campaign-tab-btn ${detailsTab === tab ? 'active' : ''}`}
-                  onClick={() => setDetailsTab(tab)}
-                >
-                  {tab === 'campaign' ? 'Campaign' : tab === 'metrics' ? 'Performance Metrics' : 'Ad Sets'}
-                </button>
-              ))}
+        <div className="campaign-view-container">
+          {detailsLoading && (
+            <div className="campaign-view-loading">
+              <div className="campaign-view-spinner" />
+              <p>Loading details...</p>
             </div>
+          )}
+          {detailsError && !detailsLoading && <div className="all-campaigns-empty">{detailsError}</div>}
 
-            {detailsTab === 'campaign' && (
-              <>
-                <section className="campaign-details-section">
-                  <h3>Campaign</h3>
-                  <div className="campaign-details-grid">
-                    <div><strong>Status:</strong> {details.status}</div>
-                    <div><strong>Objective:</strong> {details.objective || '--'}</div>
-                    <div><strong>Account:</strong> {details.accountName}</div>
-                    <div><strong>Account ID:</strong> {details.accountId}</div>
-                    <div><strong>Buying type:</strong> {details.buyingType || '--'}</div>
-                    <div><strong>Bid strategy:</strong> {details.bidStrategy || '--'}</div>
-                    <div><strong>Created:</strong> {formatDate(details.createdTime)}</div>
-                    <div><strong>Started:</strong> {formatDate(details.startTime || details.started)}</div>
-                    <div><strong>Ends:</strong> {formatDate(details.stopTime)}</div>
-                    <div><strong>Daily budget:</strong> {formatMoney(details.dailyBudget, details.billing.currency)}</div>
-                    <div><strong>Lifetime budget:</strong> {formatMoney(details.lifetimeBudget, details.billing.currency)}</div>
-                    <div><strong>Last source update:</strong> {formatDate(details.lastSourceUpdateAt)}</div>
-                  </div>
-                </section>
-                <section className="campaign-details-section">
-                  <h3>Performance Metrics</h3>
-                  <div className="campaign-details-grid">
-                    <div><strong>Leads:</strong> {formatNumber(details.metrics.leads)}</div>
-                    <div><strong>Clicks:</strong> {formatNumber(details.metrics.clicks)}</div>
-                    <div><strong>Conv rate:</strong> {details.metrics.conversionRate}%</div>
-                    <div><strong>Impressions:</strong> {formatNumber(details.metrics.impressions)}</div>
-                    <div><strong>Reach:</strong> {formatNumber(details.metrics.reach)}</div>
-                    <div><strong>Frequency:</strong> {details.metrics.frequency == null ? '--' : details.metrics.frequency.toFixed(2)}</div>
-                    <div><strong>CTR:</strong> {details.metrics.ctr == null ? '--' : `${details.metrics.ctr}%`}</div>
-                    <div><strong>Inline link clicks:</strong> {formatNumber(details.metrics.inlineLinkClicks)}</div>
-                    <div><strong>Unique inline link clicks:</strong> {formatNumber(details.metrics.uniqueInlineLinkClicks)}</div>
-                    <div><strong>Cost per inline link click:</strong> {formatMoney(details.metrics.costPerInlineLinkClick, details.billing.currency)}</div>
-                    <div><strong>CPC:</strong> {formatMoney(details.metrics.cpc, details.billing.currency)}</div>
-                    <div><strong>CPM:</strong> {formatMoney(details.metrics.cpm, details.billing.currency)}</div>
-                    <div><strong>Spend:</strong> {formatMoney(details.metrics.spend, details.billing.currency)}</div>
-                  </div>
-                </section>
-              </>
-            )}
+          {!detailsLoading && !detailsError && details && (
+            <div className="campaign-details-page">
+              <div className="campaign-tabs">
+                {(['campaign', 'metrics', 'adsets'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    className={`campaign-tab-btn ${detailsTab === tab ? 'active' : ''}`}
+                    onClick={() => setDetailsTab(tab)}
+                  >
+                    {tab === 'campaign' ? 'Campaign' : tab === 'metrics' ? 'Performance Metrics' : 'Ad Sets'}
+                  </button>
+                ))}
+              </div>
 
-            {detailsTab === 'metrics' && (
-              <>
-                <section className="campaign-details-section">
-                  <div className="campaign-breakdown-header">
-                    <h3>Breakdown</h3>
-                    <div className="campaign-preset-tabs">
-                      {(
-                        [
-                          { key: 'audience', label: 'Audience' },
-                          { key: 'geo', label: 'Geo' },
-                          { key: 'placement', label: 'Placement' },
-                          { key: 'time', label: 'Time' },
-                          { key: 'custom', label: 'Custom' },
-                        ] as const
-                      ).map((preset) => (
-                        <button
-                          key={preset.key}
-                          type="button"
-                          className={`campaign-preset-btn ${breakdownPreset === preset.key ? 'active' : ''}`}
-                          onClick={() => applyBreakdownPreset(preset.key)}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
+              {detailsTab === 'campaign' && (
+                <>
+                  <section className="campaign-details-section">
+                    <h3>Campaign</h3>
+                    <div className="campaign-details-grid">
+                      <div><strong>Status:</strong> {details.status}</div>
+                      <div><strong>Objective:</strong> {details.objective || '--'}</div>
+                      <div><strong>Account:</strong> {details.accountName}</div>
+                      <div><strong>Account ID:</strong> {details.accountId}</div>
+                      <div><strong>Buying type:</strong> {details.buyingType || '--'}</div>
+                      <div><strong>Bid strategy:</strong> {details.bidStrategy || '--'}</div>
+                      <div><strong>Created:</strong> {formatDate(details.createdTime)}</div>
+                      <div><strong>Started:</strong> {formatDate(details.startTime || details.started)}</div>
+                      <div><strong>Ends:</strong> {formatDate(details.stopTime)}</div>
+                      <div><strong>Daily budget:</strong> {formatMoney(details.dailyBudget, details.billing.currency)}</div>
+                      <div><strong>Lifetime budget:</strong> {formatMoney(details.lifetimeBudget, details.billing.currency)}</div>
+                      <div><strong>Last source update:</strong> {formatDate(details.lastSourceUpdateAt)}</div>
                     </div>
-                    <div className="campaign-breakdown-controls">
-                      <label>
-                        Main
-                        <select
-                          value={mainBreakdown}
-                          onChange={(event) => {
-                            const nextMain = event.target.value
-                            setBreakdownPreset('custom')
-                            setMainBreakdown(nextMain)
-                            if (selectedCampaignId) {
-                              void loadBreakdown(selectedCampaignId, nextMain, actionBreakdown)
-                            }
-                          }}
-                        >
-                          {mainBreakdownOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Action
-                        <select
-                          value={actionBreakdown}
-                          onChange={(event) => {
-                            const nextAction = event.target.value
-                            setBreakdownPreset('custom')
-                            setActionBreakdown(nextAction)
-                            if (selectedCampaignId) {
-                              void loadBreakdown(selectedCampaignId, mainBreakdown, nextAction)
-                            }
-                          }}
-                        >
-                          {actionBreakdownOptions.map((option) => (
-                            <option key={option.value || 'none'} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                  </section>
+                  <section className="campaign-details-section">
+                    <h3>Performance Metrics</h3>
+                    <div className="campaign-details-grid">
+                      <div><strong>Leads:</strong> {formatNumber(details.metrics.leads)}</div>
+                      <div><strong>Clicks:</strong> {formatNumber(details.metrics.clicks)}</div>
+                      <div><strong>Conv rate:</strong> {details.metrics.conversionRate}%</div>
+                      <div><strong>Impressions:</strong> {formatNumber(details.metrics.impressions)}</div>
+                      <div><strong>Reach:</strong> {formatNumber(details.metrics.reach)}</div>
+                      <div><strong>Frequency:</strong> {details.metrics.frequency == null ? '--' : details.metrics.frequency.toFixed(2)}</div>
+                      <div><strong>CTR:</strong> {details.metrics.ctr == null ? '--' : `${details.metrics.ctr}%`}</div>
+                      <div><strong>Inline link clicks:</strong> {formatNumber(details.metrics.inlineLinkClicks)}</div>
+                      <div><strong>Unique inline link clicks:</strong> {formatNumber(details.metrics.uniqueInlineLinkClicks)}</div>
+                      <div><strong>Cost per inline link click:</strong> {formatMoney(details.metrics.costPerInlineLinkClick, details.billing.currency)}</div>
+                      <div><strong>CPC:</strong> {formatMoney(details.metrics.cpc, details.billing.currency)}</div>
+                      <div><strong>CPM:</strong> {formatMoney(details.metrics.cpm, details.billing.currency)}</div>
+                      <div><strong>Spend:</strong> {formatMoney(details.metrics.spend, details.billing.currency)}</div>
                     </div>
-                  </div>
-                  {breakdownWarning && <p className="all-campaigns-desc">{breakdownWarning}</p>}
-                  {breakdownLoading ? (
-                    <p className="all-campaigns-desc">Loading breakdown...</p>
-                  ) : breakdownError ? (
-                    <p className="all-campaigns-desc">{breakdownError}</p>
-                  ) : breakdownRows.length === 0 ? (
-                    <p className="all-campaigns-desc">No breakdown metrics available.</p>
-                  ) : (
-                    <>
-                      <div className="campaign-graph-header">
+                  </section>
+                </>
+              )}
+
+              {detailsTab === 'metrics' && (
+                <>
+                  <section className="campaign-details-section campaign-metrics-summary">
+                    <div className="campaign-metric-card">
+                      <span className="campaign-metric-label">Leads</span>
+                      <span className="campaign-metric-value">{formatNumber(details.metrics.leads)}</span>
+                    </div>
+                    <div className="campaign-metric-card">
+                      <span className="campaign-metric-label">Clicks</span>
+                      <span className="campaign-metric-value">{formatNumber(details.metrics.clicks)}</span>
+                    </div>
+                    <div className="campaign-metric-card">
+                      <span className="campaign-metric-label">Spend</span>
+                      <span className="campaign-metric-value">{formatMoney(details.metrics.spend, details.billing.currency)}</span>
+                    </div>
+                    <div className="campaign-metric-card">
+                      <span className="campaign-metric-label">CTR</span>
+                      <span className="campaign-metric-value">{details.metrics.ctr == null ? '--' : `${details.metrics.ctr}%`}</span>
+                    </div>
+                  </section>
+                  <section className="campaign-details-section campaign-metrics-breakdown-section">
+                    <div className="campaign-breakdown-header">
+                      <h3>Breakdown by dimension</h3>
+                      <div className="campaign-breakdown-presets-row">
+                        <div className="campaign-preset-tabs">
+                        {(
+                          [
+                            { key: 'audience', label: 'Audience' },
+                            { key: 'geo', label: 'Geo' },
+                            { key: 'placement', label: 'Placement' },
+                            { key: 'time', label: 'Time' },
+                            { key: 'custom', label: 'Custom' },
+                          ] as const
+                        ).map((preset) => (
+                          <button
+                            key={preset.key}
+                            type="button"
+                            className={`campaign-preset-btn ${breakdownPreset === preset.key ? 'active' : ''}`}
+                            onClick={() => applyBreakdownPreset(preset.key)}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                        </div>
+                        <div className="campaign-breakdown-controls">
                         <label>
-                          Graph Metric
-                          <select value={graphMetric} onChange={(event) => setGraphMetric(event.target.value as 'spend' | 'clicks' | 'leads' | 'ctr')}>
-                            <option value="spend">Spend</option>
-                            <option value="clicks">Clicks</option>
-                            <option value="leads">Leads</option>
-                            <option value="ctr">CTR</option>
+                          Main
+                          <select
+                            value={mainBreakdown}
+                            onChange={(event) => {
+                              const nextMain = event.target.value
+                              setBreakdownPreset('custom')
+                              setMainBreakdown(nextMain)
+                              if (selectedCampaignId) {
+                                void loadBreakdown(selectedCampaignId, nextMain, actionBreakdown)
+                              }
+                            }}
+                          >
+                            {mainBreakdownOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                         </label>
                         <label>
-                          View
-                          <select value={breakdownView} onChange={(event) => setBreakdownView(event.target.value as BreakdownView)}>
-                            <option value="both">Graph + Data</option>
-                            <option value="graph">Graph only</option>
-                            <option value="table">Data only</option>
+                          Action
+                          <select
+                            value={actionBreakdown}
+                            onChange={(event) => {
+                              const nextAction = event.target.value
+                              setBreakdownPreset('custom')
+                              setActionBreakdown(nextAction)
+                              if (selectedCampaignId) {
+                                void loadBreakdown(selectedCampaignId, mainBreakdown, nextAction)
+                              }
+                            }}
+                          >
+                            {actionBreakdownOptions.map((option) => (
+                              <option key={option.value || 'none'} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                         </label>
+                        </div>
                       </div>
-                      {(breakdownView === 'graph' || breakdownView === 'both') && (
-                        <div className="breakdown-chart-list">
-                          {(() => {
-                            const topRows = [...breakdownRows].slice(0, 12)
-                            const values = topRows.map((row) => {
-                              if (graphMetric === 'spend') return row.spend || 0
-                              if (graphMetric === 'clicks') return row.clicks || 0
-                              if (graphMetric === 'leads') return row.leads || 0
-                              return row.ctr || 0
-                            })
-                            const max = Math.max(...values, 0)
-                            return topRows.map((row) => {
-                              const value =
-                                graphMetric === 'spend'
-                                  ? row.spend || 0
-                                  : graphMetric === 'clicks'
-                                    ? row.clicks || 0
-                                    : graphMetric === 'leads'
-                                      ? row.leads || 0
-                                      : row.ctr || 0
-                              const percent = max > 0 ? (value / max) * 100 : 0
-                              return (
-                                <div key={`${row.key}-${graphMetric}`} className="breakdown-chart-row">
-                                  <div className="breakdown-chart-label">{row.key}</div>
-                                  <div className="breakdown-chart-bar-wrap">
-                                    <div className="breakdown-chart-bar" style={{ width: `${percent}%` }} />
-                                  </div>
-                                  <div className="breakdown-chart-value">
-                                    {graphMetric === 'spend'
+                    </div>
+                    {breakdownWarning && <p className="all-campaigns-desc">{breakdownWarning}</p>}
+                    {breakdownLoading ? (
+                      <div className="campaign-breakdown-loading">
+                        <div className="campaign-view-spinner" />
+                        <p>Loading breakdown...</p>
+                      </div>
+                    ) : breakdownError ? (
+                      <p className="all-campaigns-desc">{breakdownError}</p>
+                    ) : breakdownRows.length === 0 ? (
+                      <p className="all-campaigns-desc">No breakdown metrics available.</p>
+                    ) : (
+                      <>
+                        <div className="campaign-graph-header">
+                          <label>
+                            Graph Metric
+                            <select value={graphMetric} onChange={(event) => setGraphMetric(event.target.value as 'spend' | 'clicks' | 'leads' | 'ctr')}>
+                              <option value="spend">Spend</option>
+                              <option value="clicks">Clicks</option>
+                              <option value="leads">Leads</option>
+                              <option value="ctr">CTR</option>
+                            </select>
+                          </label>
+                        </div>
+                        <div className="chart-card campaign-breakdown-chart-card">
+                          <div className="chart-title">
+                            Breakdown by {graphMetric === 'spend' ? 'Spend' : graphMetric === 'clicks' ? 'Clicks' : graphMetric === 'leads' ? 'Leads' : 'CTR'}
+                          </div>
+                          <ResponsiveContainer width="100%" height={280}>
+                              <BarChart
+                                data={[...breakdownRows].slice(0, 12).map((row) => ({
+                                  name: row.key,
+                                  value:
+                                    graphMetric === 'spend'
+                                      ? row.spend || 0
+                                      : graphMetric === 'clicks'
+                                        ? row.clicks || 0
+                                        : graphMetric === 'leads'
+                                          ? row.leads || 0
+                                          : row.ctr || 0,
+                                }))}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+                                <YAxis stroke="#64748b" fontSize={12} />
+                                <Tooltip
+                                  contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
+                                  formatter={(value: number) =>
+                                    graphMetric === 'spend'
                                       ? formatMoney(value, details.billing.currency)
                                       : graphMetric === 'ctr'
-                                        ? `${value.toFixed(2)}%`
-                                        : formatNumber(value)}
-                                  </div>
-                                </div>
-                              )
-                            })
-                          })()}
+                                        ? `${Number(value).toFixed(2)}%`
+                                        : formatNumber(value)
+                                  }
+                                />
+                                <Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                          </ResponsiveContainer>
                         </div>
-                      )}
 
-                      {(breakdownView === 'table' || breakdownView === 'both') && (
                         <div className="campaign-table-wrap">
                           <table className="campaign-table">
                             <thead>
                               <tr>
-                                <th>Breakdown</th>
-                                <th>Leads</th>
-                                <th>Clicks</th>
-                                <th>Inline Link Clicks</th>
-                                <th>Unique Inline Link Clicks</th>
-                                <th>Impressions</th>
-                                <th>Reach</th>
-                                <th>Frequency</th>
-                                <th>CTR</th>
-                                <th>Cost / Inline Click</th>
-                                <th>CPC</th>
-                                <th>Spend</th>
+                                  <th>Breakdown</th>
+                                  <th>Leads</th>
+                                  <th>Clicks</th>
+                                  <th>Inline Link Clicks</th>
+                                  <th>Unique Inline Link Clicks</th>
+                                  <th>Impressions</th>
+                                  <th>Reach</th>
+                                  <th>Frequency</th>
+                                  <th>CTR</th>
+                                  <th>Cost / Inline Click</th>
+                                  <th>CPC</th>
+                                  <th>Spend</th>
                               </tr>
                             </thead>
                             <tbody>
                               {breakdownRows.map((row) => (
                                 <tr key={row.key}>
-                                  <td>{row.key}</td>
-                                  <td>{formatNumber(row.leads)}</td>
-                                  <td>{formatNumber(row.clicks)}</td>
-                                  <td>{formatNumber(row.inlineLinkClicks)}</td>
-                                  <td>{formatNumber(row.uniqueInlineLinkClicks)}</td>
-                                  <td>{formatNumber(row.impressions)}</td>
-                                  <td>{formatNumber(row.reach)}</td>
-                                  <td>{row.frequency == null ? '--' : row.frequency.toFixed(2)}</td>
-                                  <td>{row.ctr == null ? '--' : `${row.ctr}%`}</td>
-                                  <td>{formatMoney(row.costPerInlineLinkClick, details.billing.currency)}</td>
-                                  <td>{formatMoney(row.cpc, details.billing.currency)}</td>
-                                  <td>{formatMoney(row.spend, details.billing.currency)}</td>
+                                    <td>{row.key}</td>
+                                    <td>{formatNumber(row.leads)}</td>
+                                    <td>{formatNumber(row.clicks)}</td>
+                                    <td>{formatNumber(row.inlineLinkClicks)}</td>
+                                    <td>{formatNumber(row.uniqueInlineLinkClicks)}</td>
+                                    <td>{formatNumber(row.impressions)}</td>
+                                    <td>{formatNumber(row.reach)}</td>
+                                    <td>{row.frequency == null ? '--' : row.frequency.toFixed(2)}</td>
+                                    <td>{row.ctr == null ? '--' : `${row.ctr}%`}</td>
+                                    <td>{formatMoney(row.costPerInlineLinkClick, details.billing.currency)}</td>
+                                    <td>{formatMoney(row.cpc, details.billing.currency)}</td>
+                                    <td>{formatMoney(row.spend, details.billing.currency)}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
-                      )}
-                    </>
+                      </>
+                    )}
+                  </section>
+                </>
+              )}
+
+              {detailsTab === 'adsets' && (
+                <section className="campaign-details-section">
+                  <h3>Ad Sets</h3>
+                  {details.adSets.length === 0 ? (
+                    <p className="all-campaigns-desc">No ad set details available.</p>
+                  ) : (
+                    <div className="campaign-details-list">
+                      {details.adSets.map((adSet) => (
+                        <div key={adSet.id} className="campaign-details-card">
+                          <div className="campaign-details-card-header">
+                            <strong>{adSet.name}</strong>
+                            <span className={`campaign-status ${adSet.status}`}>{adSet.status}</span>
+                          </div>
+                          <div className="campaign-details-grid">
+                            <div><strong>Ad Set ID:</strong> {adSet.id}</div>
+                            <div><strong>Bid strategy:</strong> {adSet.bidStrategy || '--'}</div>
+                            <div><strong>Start:</strong> {formatDate(adSet.startTime)}</div>
+                            <div><strong>End:</strong> {formatDate(adSet.endTime)}</div>
+                            <div><strong>Daily budget:</strong> {formatMoney(adSet.dailyBudget, details.billing.currency)}</div>
+                            <div><strong>Lifetime budget:</strong> {formatMoney(adSet.lifetimeBudget, details.billing.currency)}</div>
+                            <div><strong>Leads:</strong> {formatNumber(adSet.metrics?.leads)}</div>
+                            <div><strong>Clicks:</strong> {formatNumber(adSet.metrics?.clicks)}</div>
+                            <div><strong>Impressions:</strong> {formatNumber(adSet.metrics?.impressions)}</div>
+                            <div><strong>Reach:</strong> {formatNumber(adSet.metrics?.reach)}</div>
+                            <div><strong>Frequency:</strong> {adSet.metrics?.frequency == null ? '--' : adSet.metrics.frequency.toFixed(2)}</div>
+                            <div><strong>CTR:</strong> {adSet.metrics?.ctr == null ? '--' : `${adSet.metrics.ctr}%`}</div>
+                            <div><strong>Inline link clicks:</strong> {formatNumber(adSet.metrics?.inlineLinkClicks)}</div>
+                            <div><strong>Unique inline link clicks:</strong> {formatNumber(adSet.metrics?.uniqueInlineLinkClicks)}</div>
+                            <div><strong>Cost / inline click:</strong> {formatMoney(adSet.metrics?.costPerInlineLinkClick, details.billing.currency)}</div>
+                            <div><strong>Spend:</strong> {formatMoney(adSet.metrics?.spend, details.billing.currency)}</div>
+                          </div>
+
+                          <div className="ad-preview-grid">
+                            {adSet.ads.length === 0 && <div className="ad-creative-empty">No ads found in this ad set.</div>}
+                            {adSet.ads.map((ad) => (
+                              <div key={ad.id} className="ad-preview-card">
+                                <div className="ad-preview-media">
+                                  <AdCreativePreview ad={ad} />
+                                </div>
+                                <div className="ad-preview-content">
+                                  <div className="ad-preview-title">{ad.name}</div>
+                                  <div className="ad-preview-meta">Status: {ad.status}</div>
+                                  <div className="ad-preview-meta">Leads: {formatNumber(ad.metrics?.leads)}</div>
+                                  <div className="ad-preview-meta">Clicks: {formatNumber(ad.metrics?.clicks)}</div>
+                                  <div className="ad-preview-meta">Spend: {formatMoney(ad.metrics?.spend, details.billing.currency)}</div>
+                                  {ad.creative?.permalinkUrl && (
+                                    <a
+                                      className="campaign-link-btn"
+                                      href={ad.creative.permalinkUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                    >
+                                      View post
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </section>
-              </>
-            )}
+              )}
 
-            {detailsTab === 'adsets' && (
-              <section className="campaign-details-section">
-                <h3>Ad Sets</h3>
-                {details.adSets.length === 0 ? (
-                  <p className="all-campaigns-desc">No ad set details available.</p>
-                ) : (
-                  <div className="campaign-details-list">
-                    {details.adSets.map((adSet) => (
-                      <div key={adSet.id} className="campaign-details-card">
-                        <div className="campaign-details-card-header">
-                          <strong>{adSet.name}</strong>
-                          <span className={`campaign-status ${adSet.status}`}>{adSet.status}</span>
-                        </div>
-                        <div className="campaign-details-grid">
-                          <div><strong>Ad Set ID:</strong> {adSet.id}</div>
-                          <div><strong>Bid strategy:</strong> {adSet.bidStrategy || '--'}</div>
-                          <div><strong>Start:</strong> {formatDate(adSet.startTime)}</div>
-                          <div><strong>End:</strong> {formatDate(adSet.endTime)}</div>
-                          <div><strong>Daily budget:</strong> {formatMoney(adSet.dailyBudget, details.billing.currency)}</div>
-                          <div><strong>Lifetime budget:</strong> {formatMoney(adSet.lifetimeBudget, details.billing.currency)}</div>
-                          <div><strong>Leads:</strong> {formatNumber(adSet.metrics?.leads)}</div>
-                          <div><strong>Clicks:</strong> {formatNumber(adSet.metrics?.clicks)}</div>
-                          <div><strong>Impressions:</strong> {formatNumber(adSet.metrics?.impressions)}</div>
-                          <div><strong>Reach:</strong> {formatNumber(adSet.metrics?.reach)}</div>
-                          <div><strong>Frequency:</strong> {adSet.metrics?.frequency == null ? '--' : adSet.metrics.frequency.toFixed(2)}</div>
-                          <div><strong>CTR:</strong> {adSet.metrics?.ctr == null ? '--' : `${adSet.metrics.ctr}%`}</div>
-                          <div><strong>Inline link clicks:</strong> {formatNumber(adSet.metrics?.inlineLinkClicks)}</div>
-                          <div><strong>Unique inline link clicks:</strong> {formatNumber(adSet.metrics?.uniqueInlineLinkClicks)}</div>
-                          <div><strong>Cost / inline click:</strong> {formatMoney(adSet.metrics?.costPerInlineLinkClick, details.billing.currency)}</div>
-                          <div><strong>Spend:</strong> {formatMoney(adSet.metrics?.spend, details.billing.currency)}</div>
-                        </div>
-
-                        <div className="ad-preview-grid">
-                          {adSet.ads.length === 0 && <div className="ad-creative-empty">No ads found in this ad set.</div>}
-                          {adSet.ads.map((ad) => (
-                            <div key={ad.id} className="ad-preview-card">
-                              <div className="ad-preview-media">
-                                <AdCreativePreview ad={ad} />
-                              </div>
-                              <div className="ad-preview-content">
-                                <div className="ad-preview-title">{ad.name}</div>
-                                <div className="ad-preview-meta">Status: {ad.status}</div>
-                                <div className="ad-preview-meta">Leads: {formatNumber(ad.metrics?.leads)}</div>
-                                <div className="ad-preview-meta">Clicks: {formatNumber(ad.metrics?.clicks)}</div>
-                                <div className="ad-preview-meta">Spend: {formatMoney(ad.metrics?.spend, details.billing.currency)}</div>
-                                {ad.creative?.permalinkUrl && (
-                                  <a
-                                    className="campaign-link-btn"
-                                    href={ad.creative.permalinkUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    View post
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {!detailsLoading && !detailsError && details && (
           <>
-            <button type="button" className="campaign-ai-fab" onClick={() => setAssistantOpen(true)}>
-              AI
+            <button
+              type="button"
+              className={`campaign-ai-fab ${assistantOpen ? 'campaign-ai-fab-close' : ''}`}
+              onClick={() => setAssistantOpen((prev) => !prev)}
+              title={assistantOpen ? 'Close' : 'AI Insights Assistant'}
+            >
+              {assistantOpen ? (
+                <HiOutlineX size={24} />
+              ) : (
+                <>
+                  <HiOutlineChip size={24} />
+                  <span className="campaign-ai-fab-label">AI</span>
+                </>
+              )}
             </button>
             {assistantOpen && (
               <div className="campaign-ai-drawer-overlay" onClick={() => setAssistantOpen(false)} aria-hidden="true">
@@ -787,12 +820,19 @@ export const AllCampaigns: React.FC = () => {
                   onClick={(event) => event.stopPropagation()}
                 >
                   <div className="campaign-ai-drawer-header">
-                    <h4>AI Insights Assistant</h4>
-                    <button type="button" onClick={() => setAssistantOpen(false)}>Close</button>
+                    <div className="campaign-ai-header-contact">
+                      <div className="campaign-ai-avatar">AI</div>
+                      <h4 className="campaign-ai-chat-name">Campaign AI</h4>
+                    </div>
+                    <button type="button" className="campaign-ai-exit-btn" onClick={() => setAssistantOpen(false)} aria-label="Exit chat">
+                      <HiOutlineX size={20} />
+                    </button>
                   </div>
                   <div className="campaign-ai-messages">
                     {assistantMessages.length === 0 && (
-                      <div className="campaign-ai-msg bot">Ask for a summary, top segments, CTR, or optimization ideas.</div>
+                      <div className="campaign-ai-msg bot campaign-ai-placeholder">
+                        Ask for a summary, top segments, CTR, or optimization ideas.
+                      </div>
                     )}
                     {assistantMessages.map((message, index) => (
                       <div key={`${message.role}-${index}`} className={`campaign-ai-msg ${message.role}`}>
@@ -812,7 +852,7 @@ export const AllCampaigns: React.FC = () => {
                       onChange={(event) => setAssistantInput(event.target.value)}
                       placeholder="Ask: Which segment has best CTR? Where should I increase budget?"
                     />
-                    <button type="submit">Ask</button>
+                    <button type="submit" className="campaign-ai-send-btn">Ask</button>
                   </form>
                 </div>
               </div>
@@ -911,63 +951,63 @@ export const AllCampaigns: React.FC = () => {
       ) : (
         <div className="all-campaigns-grid">
           {filteredCampaigns.map((campaign) => (
-          <button
-            key={campaign.id}
-            type="button"
-            className="campaign-card campaign-card-btn"
-            onClick={() => void openDetails(campaign.id)}
-          >
-            <div className="campaign-card-header">
-              <div className="campaign-source">
-                <SiFacebook size={20} />
-                <span>{campaign.accountName || 'Facebook Ads'}</span>
+            <button
+              key={campaign.id}
+              type="button"
+              className="campaign-card campaign-card-btn"
+              onClick={() => void openDetails(campaign.id)}
+            >
+              <div className="campaign-card-header">
+                <div className="campaign-source">
+                  <SiFacebook size={20} />
+                  <span>{campaign.accountName || 'Facebook Ads'}</span>
+                </div>
+                <span className={`campaign-status ${campaign.status}`}>{campaign.status}</span>
               </div>
-              <span className={`campaign-status ${campaign.status}`}>{campaign.status}</span>
-            </div>
-            <h3 className="campaign-name">{campaign.name}</h3>
-            <div className="campaign-stats">
-              <div className="campaign-stat">
-                <span className="stat-value">{campaign.leads.toLocaleString()}</span>
-                <span className="stat-label">Leads</span>
+              <h3 className="campaign-name">{campaign.name}</h3>
+              <div className="campaign-stats">
+                <div className="campaign-stat">
+                  <span className="stat-value">{campaign.leads.toLocaleString()}</span>
+                  <span className="stat-label">Leads</span>
+                </div>
+                <div className="campaign-stat">
+                  <span className="stat-value">{campaign.clicks.toLocaleString()}</span>
+                  <span className="stat-label">Clicks</span>
+                </div>
+                <div className="campaign-stat">
+                  <span className="stat-value">{campaign.conversions}</span>
+                  <span className="stat-label">Conv%</span>
+                </div>
               </div>
-              <div className="campaign-stat">
-                <span className="stat-value">{campaign.clicks.toLocaleString()}</span>
-                <span className="stat-label">Clicks</span>
-              </div>
-              <div className="campaign-stat">
-                <span className="stat-value">{campaign.conversions}</span>
-                <span className="stat-label">Conv%</span>
-              </div>
-            </div>
-            <div className="campaign-footer">
-              <span className="campaign-started">Started {campaign.started}</span>
-              <span
-                role="button"
-                tabIndex={0}
-                className="campaign-link-btn"
-                title="View in Facebook"
-                onClick={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  if (campaign.externalUrl) {
-                    window.open(campaign.externalUrl, '_blank', 'noopener,noreferrer')
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
+              <div className="campaign-footer">
+                <span className="campaign-started">Started {campaign.started}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="campaign-link-btn"
+                  title="View in Facebook"
+                  onClick={(event) => {
                     event.preventDefault()
                     event.stopPropagation()
                     if (campaign.externalUrl) {
                       window.open(campaign.externalUrl, '_blank', 'noopener,noreferrer')
                     }
-                  }
-                }}
-              >
-                <HiOutlineExternalLink size={16} />
-              </span>
-            </div>
-          </button>
-        ))}
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      if (campaign.externalUrl) {
+                        window.open(campaign.externalUrl, '_blank', 'noopener,noreferrer')
+                      }
+                    }
+                  }}
+                >
+                  <HiOutlineExternalLink size={16} />
+                </span>
+              </div>
+            </button>
+          ))}
         </div>
       )}
 

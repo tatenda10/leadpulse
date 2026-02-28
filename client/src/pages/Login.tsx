@@ -72,11 +72,6 @@ export const Login: React.FC = () => {
         </div>
       </div>
       </div>
-
-      <footer className="login-footer">
-        <Logo size="small" />
-        <span className="login-footer-copy">© All rights reserved</span>
-      </footer>
     </div>
   )
 }
