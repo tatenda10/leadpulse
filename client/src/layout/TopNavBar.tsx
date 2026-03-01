@@ -42,7 +42,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <button type="button" className="sidebar-toggle-button" onClick={onSidebarToggle}>
           {isSidebarHidden ? 'Show Sidebar' : 'Hide Sidebar'}
         </button>
-        <button
+         <button
           type="button"
           className="icon-button live-chats-icon-button"
           aria-label={`${liveChatsNow} live chat${liveChatsNow === 1 ? '' : 's'}`}

@@ -195,6 +195,8 @@ export const AllChats: React.FC = () => {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [chatFilter, setChatFilter] = useState<ChatFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
+  const [chatSearchOpen, setChatSearchOpen] = useState(false)
 
   const [loadingChats, setLoadingChats] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -559,6 +561,8 @@ export const AllChats: React.FC = () => {
                 onClick={() => {
                   setSelectedChatId(chat.id)
                   setIsMobileChatOpen(true)
+                  setChatSearchQuery('')
+                  setChatSearchOpen(false)
                 }}
               >
                 <div className="chat-item-avatar">{chat.contact.charAt(0) || '?'}</div>
@@ -608,6 +612,15 @@ export const AllChats: React.FC = () => {
               <div className="chat-window-actions">
                 <button
                   type="button"
+                  className="chat-header-search-btn"
+                  onClick={() => setChatSearchOpen((o) => !o)}
+                  title="Search in chat"
+                  aria-label="Search in chat"
+                >
+                  <HiOutlineSearch size={20} />
+                </button>
+                <button
+                  type="button"
                   className="lead-info-btn"
                   onClick={() => setShowLeadModal(true)}
                 >
@@ -623,6 +636,29 @@ export const AllChats: React.FC = () => {
               </div>
             </div>
 
+            {chatSearchOpen && (
+              <div className="chat-search-in-chat">
+                <HiOutlineSearch size={18} className="chat-search-in-chat-icon" />
+                <input
+                  type="search"
+                  className="chat-search-in-chat-input"
+                  placeholder="Search for a word or phrase..."
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
+                  autoFocus
+                  aria-label="Search in conversation"
+                />
+                <button
+                  type="button"
+                  className="chat-search-in-chat-close"
+                  onClick={() => { setChatSearchOpen(false); setChatSearchQuery('') }}
+                  aria-label="Close search"
+                >
+                  <HiOutlineX size={18} />
+                </button>
+              </div>
+            )}
+
             <div className="chat-messages">
               {loadingMessages ? (
                 <div className="chat-window-empty">
@@ -636,16 +672,35 @@ export const AllChats: React.FC = () => {
                 <div className="chat-window-empty">
                   <p>No messages in this conversation yet</p>
                 </div>
-              ) : (
-                messages.map((msg) => (
+              ) : (() => {
+                const q = chatSearchQuery.trim().toLowerCase()
+                const filtered = q
+                  ? messages.filter((msg) => msg.text.toLowerCase().includes(q))
+                  : messages
+                if (filtered.length === 0 && q) {
+                  return (
+                    <div className="chat-window-empty">
+                      <p>No messages match &quot;{chatSearchQuery}&quot;</p>
+                    </div>
+                  )
+                }
+                const highlight = (text: string) => {
+                  if (!q) return text
+                  const escaped = chatSearchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+                  return parts.map((part, i) =>
+                    part.toLowerCase() === q ? <mark key={i} className="chat-search-highlight">{part}</mark> : part
+                  )
+                }
+                return filtered.map((msg) => (
                   <div key={msg.id} className={`chat-message ${msg.sender}`}>
                     <div className="chat-bubble">
-                      <span className="chat-bubble-text">{msg.text}</span>
+                      <span className="chat-bubble-text">{highlight(msg.text)}</span>
                       <span className="chat-bubble-time">{msg.time}</span>
                     </div>
                   </div>
                 ))
-              )}
+              })()}
             </div>
 
             <div className="chat-input-wrap">
