@@ -253,6 +253,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
           onSidebarToggle={() => setSidebarHidden((prev) => !prev)}
           isSidebarHidden={sidebarHidden}
           liveChatsNow={unreadCount}
+          hasNotifications={false}
           onNotificationsClick={() => setShowNotificationsPage((prev) => !prev)}
         />
         <div className="main-content-scrollable">{renderContent()}</div>

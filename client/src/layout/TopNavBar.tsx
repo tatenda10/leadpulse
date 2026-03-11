@@ -9,6 +9,7 @@ type TopNavBarProps = {
   onSidebarToggle: () => void
   isSidebarHidden: boolean
   liveChatsNow?: number
+  hasNotifications?: boolean
   onNotificationsClick?: () => void
 }
 
@@ -18,6 +19,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   onSidebarToggle,
   isSidebarHidden,
   liveChatsNow = 0,
+  hasNotifications = false,
   onNotificationsClick,
 }) => {
   return (
@@ -58,7 +60,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           aria-label="Notifications"
           onClick={onNotificationsClick}
         >
-          <span className="notification-dot" />
+          {hasNotifications && <span className="notification-dot" />}
           <HiOutlineBell size={20} className="notification-icon" />
         </button>
       </div>

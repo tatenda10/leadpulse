@@ -258,7 +258,7 @@ export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPr
           if (current && nextChats.some((chat) => chat.id === current)) {
             return current
           }
-          return nextChats[nextChats.length - 1]?.id ?? null
+          return null
         })
       } catch (error) {
         if (!cancelled) {
