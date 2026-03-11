@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { apiRequest } from './Api';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { AUTH_EXPIRED_EVENT, apiRequest } from './Api';
 
 type AuthUser = {
   id: number;
@@ -62,6 +62,15 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     localStorage.removeItem(AUTH_USER_KEY);
     localStorage.removeItem(LAST_LOCATION_KEY);
   };
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      logout();
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

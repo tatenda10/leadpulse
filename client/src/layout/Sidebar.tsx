@@ -96,6 +96,7 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
     { key: 'team', label: 'Team', icon: <HiOutlineUserGroup size={18} /> },
     { key: 'roles', label: 'Roles', icon: <HiOutlineShieldCheck size={18} /> },
     { key: 'permissions', label: 'Permissions', icon: <HiOutlineLockClosed size={18} /> },
+    { key: 'privacy-policy', label: 'Privacy Policy', icon: <HiOutlineDocumentText size={18} /> },
   ],
 }
 

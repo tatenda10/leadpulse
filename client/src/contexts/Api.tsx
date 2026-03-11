@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://server.leadpulse.praxiszim.co.zw';
+export const AUTH_EXPIRED_EVENT = 'leadpulse:auth-expired';
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -26,6 +27,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = await response.json().catch(() => null);
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+    }
     const message =
       payload && typeof payload === 'object' && 'error' in payload && typeof payload.error === 'string'
         ? payload.error

@@ -8,6 +8,68 @@ const SEGMENT_HOT = 'hot_lead';
 const SEGMENT_QUALIFIED = 'qualified';
 const SEGMENT_COLD = 'cold';
 
+function sanitizeReply(text) {
+  return String(text || '')
+    .replace(/^(that'?s a great question[,!.\s]*|great question[,!.\s]*|good question[,!.\s]*)/i, '')
+    .replace(/\*/g, '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function getConversationText(conversationContext, messageText) {
+  return [...(conversationContext || []).map((msg) => String(msg.text || '')), String(messageText || '')]
+    .join(' ')
+    .trim();
+}
+
+function extractStudentCount(text) {
+  const valuePatterns = [
+    /\b(?:have|with|for|around|about|say|roughly)?\s*(\d{1,5})\s+students?\b/i,
+    /\bstudents?\s*(?:are|is|=|:)?\s*(\d{1,5})\b/i,
+    /\b(\d{1,5})\b/,
+  ];
+
+  for (const pattern of valuePatterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const count = parseInt(match[1], 10);
+    if (!Number.isNaN(count) && count > 0) return count;
+  }
+  return null;
+}
+
+function extractSchoolName(text) {
+  const patterns = [
+    /\b(?:school name is|school is called|school is|from)\s+([A-Za-z0-9 .,&'-]{2,80})/i,
+    /\b([A-Za-z0-9 .,&'-]{2,80}\s+school)\b/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const name = String(match[1] || '').trim().replace(/[.?!,;:]+$/, '');
+    if (name) return name;
+  }
+  return null;
+}
+
+function getPricingReply(studentCount, schoolName) {
+  if (studentCount <= 300) {
+    return schoolName
+      ? `${schoolName}'s pricing is $400 implementation and $50 per term.`
+      : `The pricing is $400 implementation and $50 per term.`;
+  }
+  if (studentCount <= 500) {
+    return schoolName
+      ? `${schoolName}'s pricing is $600 implementation and $50 per term.`
+      : `The pricing is $600 implementation and $50 per term.`;
+  }
+  return schoolName
+    ? `${schoolName}'s pricing is $1200 implementation and $50 per month for hosting and maintenance.`
+    : `The pricing is $1200 implementation and $50 per month for hosting and maintenance.`;
+}
+
 async function getReplyFromClaude(messageText, conversationContext) {
   if (!CLAUDE_API_KEY) return null;
 
@@ -43,13 +105,32 @@ async function getReplyFromClaude(messageText, conversationContext) {
   return typeof text === 'string' ? text.trim() : null;
 }
 
-function getReplyFromRules(messageText) {
+function getReplyFromRules(messageText, conversationContext) {
   const lower = (messageText || '').toLowerCase();
+  const conversationText = getConversationText(conversationContext, messageText);
+  const studentCount = extractStudentCount(conversationText);
+  const schoolName = extractSchoolName(conversationText);
+
   if (/\b(price|cost|how much|pricing|fees?)\b/.test(lower)) {
-    return "Sure. Before I share pricing, please share your school name and the number of students.";
+    if (studentCount && schoolName) {
+      return getPricingReply(studentCount, schoolName);
+    }
+    if (studentCount) {
+      return "What is your school name?";
+    }
+    if (schoolName) {
+      return "How many students do you have?";
+    }
+    return "What is your school name and how many students do you have?";
   }
-  if (/\b(what do you do|what do you sell|school management|software|more info|information)\b/.test(lower)) {
-    return "We provide a school management system that helps with student records, fees, attendance, and administration. If you want, I can also share pricing or schedule a demo.";
+  if (/\b(what exactly does a school management system do|what does a school management system do|explain.*school management system)\b/.test(lower)) {
+    return "A school management system helps a school manage admissions, student records, attendance, fees, exams, timetables, staff, parent communication, and reports in one place.";
+  }
+  if (/\b(what do you do|what do you sell|school management|software|more info|information|what is the system about)\b/.test(lower)) {
+    return "Our school management system helps schools manage admissions, student records, attendance, fees, exams, timetables, communication, reporting, and daily administration in one place.";
+  }
+  if (/\b(paynow|online payment|online payments|payment integration|ecocash|zimswitch|bank payment|bank payments)\b/.test(lower)) {
+    return "We use Paynow integration, and it supports payments through EcoCash, Zimswitch, and other banks as well.";
   }
   if (/\b(demo|meeting|presentation)\b/.test(lower)) {
     return "Yes, we can schedule a demo based on your availability, either online or in person. What day and time works for you?";
@@ -119,8 +200,9 @@ async function getReplyAndClassify(conversationId, messageText, conversationCont
 
   let replyText = await getReplyFromClaude(messageText, conversationContext);
   if (!replyText) {
-    replyText = getReplyFromRules(messageText);
+    replyText = getReplyFromRules(messageText, conversationContext);
   }
+  replyText = sanitizeReply(replyText);
 
   return { replyText, leadScore, segment };
 }

@@ -682,13 +682,14 @@ export const AllCampaigns: React.FC = () => {
                                 />
                                 <Tooltip
                                   contentStyle={{ borderRadius: '4px', border: '1px solid #e2e8f0' }}
-                                  formatter={(value: number) =>
-                                    graphMetric === 'spend'
-                                      ? formatMoney(value, details.billing.currency)
+                                  formatter={(value: number | undefined) => {
+                                    const safeValue = value ?? 0
+                                    return graphMetric === 'spend'
+                                      ? formatMoney(safeValue, details.billing.currency)
                                       : graphMetric === 'ctr'
-                                        ? `${Number(value).toFixed(2)}%`
-                                        : formatNumber(value)
-                                  }
+                                        ? `${Number(safeValue).toFixed(2)}%`
+                                        : formatNumber(safeValue)
+                                  }}
                                 />
                                 <Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]} />
                               </BarChart>

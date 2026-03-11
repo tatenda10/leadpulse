@@ -43,6 +43,7 @@ import { SettingsPhoneNumber } from '../pages/SettingsPhoneNumber'
 import { SettingsTeam } from '../pages/SettingsTeam'
 import { SettingsRoles } from '../pages/SettingsRoles'
 import { SettingsPermissions } from '../pages/SettingsPermissions'
+import { PrivacyPolicy } from '../pages/PrivacyPolicy'
 import { Notifications } from '../pages/Notifications'
 import '../layout/Layout.css'
 import '../layout/Sidebar.css'
@@ -216,6 +217,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       if (activeSubMenu === 'team') return <SettingsTeam />
       if (activeSubMenu === 'roles') return <SettingsRoles />
       if (activeSubMenu === 'permissions') return <SettingsPermissions />
+      if (activeSubMenu === 'privacy-policy') return <PrivacyPolicy />
     }
     return <div className="placeholder-page">{PRIMARY_SECTION_LABELS[activeSection]} — Coming soon</div>
   }
