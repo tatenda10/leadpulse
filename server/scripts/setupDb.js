@@ -30,7 +30,14 @@ async function applySchema() {
     .filter(Boolean);
 
   for (const statement of statements) {
-    await query(statement);
+    try {
+      await query(statement);
+    } catch (err) {
+      if (err && err.code === 'ER_DUP_FIELDNAME') {
+        continue;
+      }
+      throw err;
+    }
   }
 }
 

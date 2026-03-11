@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { HiOutlineChip, HiOutlineUser, HiOutlineChat, HiOutlineArrowLeft, HiOutlineX, HiOutlineSearch } from 'react-icons/hi'
 import './AllChats.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
 import { useUnreadCount } from '../contexts/UnreadCountContext'
+import { getEffectiveUnreadCount, markConversationReadLocally } from '../utils/conversationReadState'
 
 type Chat = {
   id: string
@@ -184,9 +185,15 @@ function formatStartedAt(value: string | null): string {
 
 type ChatFilter = 'all' | 'hot' | 'warm' | 'cold' | 'bot' | 'human'
 
-export const AllChats: React.FC = () => {
+type AllChatsProps = {
+  preferredChatId?: string | null
+  onPreferredChatHandled?: () => void
+}
+
+export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPreferredChatHandled }) => {
   const { token } = useAuth()
   const { setUnreadCount } = useUnreadCount()
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
   const [chats, setChats] = useState<Chat[]>([])
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -207,6 +214,10 @@ export const AllChats: React.FC = () => {
   const [sending, setSending] = useState(false)
   const [warmThreshold, setWarmThreshold] = useState(40)
   const [hotThreshold, setHotThreshold] = useState(70)
+
+  useEffect(() => {
+    setUnreadCount(chats.reduce((sum, chat) => sum + chat.unread, 0))
+  }, [chats, setUnreadCount])
 
   useEffect(() => {
     let cancelled = false
@@ -232,7 +243,7 @@ export const AllChats: React.FC = () => {
           phone: chat.phone,
           lastMessage: chat.lastMessage || 'No messages yet',
           lastMessageAt: chat.lastMessageAt,
-          unread: chat.unread,
+          unread: getEffectiveUnreadCount(chat.id, chat.unread, chat.lastMessageAt),
           status: chat.status,
           isHot: chat.isHot,
           leadScore: Number(chat.leadScore || 0),
@@ -240,19 +251,20 @@ export const AllChats: React.FC = () => {
         }))
 
         setChats(nextChats)
-        setUnreadCount(nextChats.reduce((s, c) => s + c.unread, 0))
         setSelectedChatId((current) => {
+          if (preferredChatId && nextChats.some((chat) => chat.id === preferredChatId)) {
+            return preferredChatId
+          }
           if (current && nextChats.some((chat) => chat.id === current)) {
             return current
           }
-          return nextChats[0]?.id ?? null
+          return nextChats[nextChats.length - 1]?.id ?? null
         })
       } catch (error) {
         if (!cancelled) {
           setChatError(error instanceof Error ? error.message : 'Failed to load chats')
           setChats([])
           setSelectedChatId(null)
-          setUnreadCount(0)
         }
       } finally {
         if (!cancelled) {
@@ -266,7 +278,20 @@ export const AllChats: React.FC = () => {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [preferredChatId, token])
+
+  useEffect(() => {
+    if (!preferredChatId) return
+
+    const chatExists = chats.some((chat) => chat.id === preferredChatId)
+    if (!chatExists) return
+
+    setSelectedChatId(preferredChatId)
+    setIsMobileChatOpen(true)
+    setChatSearchQuery('')
+    setChatSearchOpen(false)
+    onPreferredChatHandled?.()
+  }, [chats, onPreferredChatHandled, preferredChatId])
 
   useEffect(() => {
     let cancelled = false
@@ -344,6 +369,49 @@ export const AllChats: React.FC = () => {
       cancelled = true
     }
   }, [selectedChatId, token])
+
+  useEffect(() => {
+    if (!selectedChatId) return
+
+    const selectedChat = chats.find((chat) => chat.id === selectedChatId)
+    markConversationReadLocally(selectedChatId, selectedChat?.lastMessageAt ?? null)
+
+    if (token) {
+      void apiRequest<UpdateConversationResponse>(`/conversations/${selectedChatId}`, {
+        method: 'PATCH',
+        body: { markRead: true },
+        token,
+      }).catch(() => {
+        // Keep local unread clearing responsive even if persistence fails.
+      })
+    }
+
+    setChats((prev) => {
+      const target = prev.find((chat) => chat.id === selectedChatId)
+      if (!target || target.unread === 0) return prev
+
+      return prev.map((chat) =>
+        chat.id === selectedChatId
+          ? {
+              ...chat,
+              unread: 0,
+            }
+          : chat
+      )
+    })
+  }, [chats, selectedChatId, token])
+
+  useLayoutEffect(() => {
+    if (!selectedChatId || loadingMessages) return
+
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    const previousScrollBehavior = container.style.scrollBehavior
+    container.style.scrollBehavior = 'auto'
+    container.scrollTop = container.scrollHeight
+    container.style.scrollBehavior = previousScrollBehavior
+  }, [selectedChatId, messages.length, loadingMessages])
 
   const selectedChat = useMemo(
     () => chats.find((chat) => chat.id === selectedChatId) ?? null,
@@ -457,6 +525,7 @@ export const AllChats: React.FC = () => {
       setMessageInput('')
 
       const nowIso = new Date().toISOString()
+      markConversationReadLocally(selectedChat.id, nowIso)
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === selectedChat.id
@@ -659,7 +728,7 @@ export const AllChats: React.FC = () => {
               </div>
             )}
 
-            <div className="chat-messages">
+            <div className="chat-messages" ref={messagesContainerRef}>
               {loadingMessages ? (
                 <div className="chat-window-empty">
                   <p>Loading messages...</p>

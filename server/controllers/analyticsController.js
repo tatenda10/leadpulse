@@ -253,16 +253,10 @@ async function getOverview(req, res) {
 
     const [unreadRow] = await query(
       `SELECT COUNT(*) AS unread
-       FROM conversations c
-       WHERE EXISTS (
-         SELECT 1 FROM messages mi
-         WHERE mi.conversation_id = c.id
-           AND mi.direction = 'in'
-           AND mi.created_at > COALESCE(
-             (SELECT MAX(mo.created_at) FROM messages mo WHERE mo.conversation_id = c.id AND mo.direction = 'out'),
-             '1970-01-01'
-           )
-       )`
+       FROM messages mi
+       JOIN conversations c ON c.id = mi.conversation_id
+       WHERE mi.direction = 'in'
+         AND mi.created_at > COALESCE(c.last_read_at, '1970-01-01')`
     );
     const [attentionRow] = await query(
       `SELECT COUNT(*) AS needs_attention

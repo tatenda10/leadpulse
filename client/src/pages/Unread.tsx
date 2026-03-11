@@ -5,6 +5,7 @@ import './Unread.css'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
 import { useUnreadCount } from '../contexts/UnreadCountContext'
+import { getEffectiveUnreadCount, markConversationReadLocally } from '../utils/conversationReadState'
 
 type Chat = {
   id: string
@@ -12,6 +13,7 @@ type Chat = {
   phone: string
   lastMessage: string
   time: string
+  lastMessageAt: string | null
   unread: number
   status: 'bot' | 'human'
   isHot: boolean
@@ -50,12 +52,22 @@ function formatRelativeTime(value: string | null): string {
   return date.toLocaleDateString()
 }
 
-export const Unread: React.FC = () => {
+type UnreadProps = {
+  onOpenConversation?: (conversationId: string) => void
+}
+
+export const Unread: React.FC<UnreadProps> = ({ onOpenConversation }) => {
   const { token } = useAuth()
   const { setUnreadCount } = useUnreadCount()
   const [unreadChats, setUnreadChats] = useState<Chat[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [markingAllRead, setMarkingAllRead] = useState(false)
+  const [markingChatId, setMarkingChatId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setUnreadCount(unreadChats.reduce((sum, chat) => sum + chat.unread, 0))
+  }, [unreadChats, setUnreadCount])
 
   useEffect(() => {
     let cancelled = false
@@ -77,27 +89,28 @@ export const Unread: React.FC = () => {
 
         const nextUnread: Chat[] =
           res.conversations
-            ?.filter((c) => (c.unread ?? 0) > 0)
+            ?.map((c) => ({
+              ...c,
+              unread: getEffectiveUnreadCount(c.id, c.unread ?? 0, c.lastMessageAt),
+            }))
+            .filter((c) => (c.unread ?? 0) > 0)
             .map((c) => ({
               id: c.id,
               contact: c.contact,
               phone: c.phone,
               lastMessage: c.lastMessage || 'No messages yet',
               time: formatRelativeTime(c.lastMessageAt),
+              lastMessageAt: c.lastMessageAt,
               unread: c.unread,
               status: c.status,
               isHot: c.isHot,
             })) ?? []
 
         setUnreadChats(nextUnread)
-        const totalUnread =
-          res.conversations?.reduce((sum, c) => sum + (c.unread ?? 0), 0) ?? 0
-        setUnreadCount(totalUnread)
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load unread conversations')
           setUnreadChats([])
-          setUnreadCount(0)
         }
       } finally {
         if (!cancelled) {
@@ -113,9 +126,77 @@ export const Unread: React.FC = () => {
     }
   }, [token, setUnreadCount])
 
-  const handleMarkAllRead = () => {
+  const handleMarkRead = async (chatId: string) => {
+    if (!token || markingChatId || markingAllRead) return
+
+    const previousChats = unreadChats
+    setMarkingChatId(chatId)
+    setError(null)
+    setUnreadChats((prev) => prev.filter((chat) => chat.id !== chatId))
+    const target = previousChats.find((chat) => chat.id === chatId)
+    markConversationReadLocally(chatId, target?.lastMessageAt ?? null)
+    try {
+      await apiRequest(`/conversations/${chatId}`, {
+        method: 'PATCH',
+        body: { markRead: true },
+        token,
+      })
+    } catch (e) {
+      setUnreadChats(previousChats)
+      setError(e instanceof Error ? e.message : 'Failed to mark conversation as read')
+    } finally {
+      setMarkingChatId(null)
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    if (!token || unreadChats.length === 0 || markingAllRead) return
+
+    const previousChats = unreadChats
+    setMarkingAllRead(true)
+    setError(null)
     setUnreadChats([])
-    setUnreadCount(0)
+    previousChats.forEach((chat) => markConversationReadLocally(chat.id, chat.lastMessageAt))
+    try {
+      await Promise.all(
+        previousChats.map((chat) =>
+          apiRequest(`/conversations/${chat.id}`, {
+            method: 'PATCH',
+            body: { markRead: true },
+            token,
+          })
+        )
+      )
+    } catch (e) {
+      setUnreadChats(previousChats)
+      setError(e instanceof Error ? e.message : 'Failed to mark all conversations as read')
+    } finally {
+      setMarkingAllRead(false)
+    }
+  }
+
+  const handleOpenConversation = async (chatId: string) => {
+    if (!token || markingAllRead || Boolean(markingChatId)) return
+
+    const previousChats = unreadChats
+    setMarkingChatId(chatId)
+    setError(null)
+    setUnreadChats((prev) => prev.filter((chat) => chat.id !== chatId))
+    const target = previousChats.find((chat) => chat.id === chatId)
+    markConversationReadLocally(chatId, target?.lastMessageAt ?? null)
+    onOpenConversation?.(chatId)
+    try {
+      await apiRequest(`/conversations/${chatId}`, {
+        method: 'PATCH',
+        body: { markRead: true },
+        token,
+      })
+    } catch (e) {
+      setUnreadChats(previousChats)
+      setError(e instanceof Error ? e.message : 'Failed to open conversation')
+    } finally {
+      setMarkingChatId(null)
+    }
   }
 
   return (
@@ -124,8 +205,8 @@ export const Unread: React.FC = () => {
         <div className="chat-list-header">
           <span className="chat-list-title">Unread</span>
           {unreadChats.length > 0 && (
-            <button type="button" className="unread-mark-btn" onClick={handleMarkAllRead}>
-              Mark all as read
+            <button type="button" className="unread-mark-btn" onClick={handleMarkAllRead} disabled={markingAllRead || Boolean(markingChatId)}>
+              {markingAllRead ? 'Marking...' : 'Mark all as read'}
             </button>
           )}
         </div>
@@ -149,6 +230,20 @@ export const Unread: React.FC = () => {
               <div
                 key={chat.id}
                 className="chat-item unread"
+                onClick={() => {
+                  if (markingAllRead || markingChatId === chat.id) return
+                  void handleOpenConversation(chat.id)
+                }}
+                onKeyDown={(e) => {
+                  if (markingAllRead || markingChatId === chat.id) return
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    void handleOpenConversation(chat.id)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-disabled={markingAllRead || markingChatId === chat.id}
               >
                 <div className="chat-item-avatar">
                   {chat.contact.charAt(0)}
@@ -172,6 +267,17 @@ export const Unread: React.FC = () => {
                       {chat.status === 'bot' ? <HiOutlineChip size={12} /> : <HiOutlineUser size={12} />}
                       {chat.status === 'bot' ? 'Bot' : 'Human'}
                     </span>
+                    <button
+                      type="button"
+                      className="unread-inline-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void handleMarkRead(chat.id)
+                      }}
+                      disabled={markingAllRead || markingChatId === chat.id}
+                    >
+                      {markingChatId === chat.id ? 'Marking...' : 'Mark read'}
+                    </button>
                   </div>
                 </div>
               </div>

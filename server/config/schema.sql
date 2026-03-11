@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   segment VARCHAR(50) DEFAULT NULL,
   source VARCHAR(50) DEFAULT 'organic',
   last_message_at TIMESTAMP NULL DEFAULT NULL,
+  last_read_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_contact_id (contact_id),
@@ -40,6 +41,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   UNIQUE KEY uq_conversation_contact_phone (contact_id, phone_number_id),
   FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
 );
+
+ALTER TABLE conversations
+ADD COLUMN last_read_at TIMESTAMP NULL DEFAULT NULL AFTER last_message_at;
 
 -- Every in/out message
 CREATE TABLE IF NOT EXISTS messages (

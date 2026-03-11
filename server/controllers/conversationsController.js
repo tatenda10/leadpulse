@@ -8,7 +8,7 @@ async function list(req, res) {
        ct.wa_id, ct.phone, ct.name AS contact_name,
        (SELECT body FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
        (SELECT direction FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_direction,
-       (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.direction = 'in' AND m.created_at > COALESCE((SELECT MAX(created_at) FROM messages WHERE conversation_id = c.id AND direction = 'out'), '1970-01-01')) AS unread
+       (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id AND m.direction = 'in' AND m.created_at > COALESCE(c.last_read_at, '1970-01-01')) AS unread
        FROM conversations c
        JOIN contacts ct ON c.contact_id = ct.id
        ORDER BY c.last_message_at IS NULL, c.last_message_at DESC, c.id DESC
@@ -102,14 +102,14 @@ async function sendMessage(req, res) {
       [conversationId, 'out', 'text', text, outboundMetaId, 'agent']
     );
 
-    await query(
-      'UPDATE conversations SET last_message_at = NOW(), updated_at = NOW() WHERE id = ?',
-      [conversationId]
-    );
-
     const [inserted] = await query(
       'SELECT id, conversation_id, direction, type, body, sender, created_at FROM messages WHERE id = ?',
       [insertResult.insertId]
+    );
+
+    await query(
+      'UPDATE conversations SET last_message_at = ?, last_read_at = ?, updated_at = NOW() WHERE id = ?',
+      [inserted.created_at, inserted.created_at, conversationId]
     );
 
     return res.status(201).json({
@@ -132,7 +132,7 @@ async function sendMessage(req, res) {
 async function update(req, res) {
   try {
     const conversationId = req.params.id;
-    const { segment, status } = req.body;
+    const { segment, status, markRead } = req.body;
     const updates = [];
     const params = [];
     if (segment !== undefined) {
@@ -146,8 +146,12 @@ async function update(req, res) {
       updates.push('status = ?');
       params.push(status);
     }
+    if (markRead === true) {
+      updates.push("last_read_at = COALESCE((SELECT MAX(m.created_at) FROM messages m WHERE m.conversation_id = ?), NOW())");
+      params.push(conversationId);
+    }
     if (updates.length === 0) {
-      return res.status(400).json({ error: 'Provide segment and/or status' });
+      return res.status(400).json({ error: 'Provide segment, status, and/or markRead' });
     }
     params.push(conversationId);
     await query(`UPDATE conversations SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`, params);

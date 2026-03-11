@@ -45,6 +45,7 @@ import { SettingsRoles } from '../pages/SettingsRoles'
 import { SettingsPermissions } from '../pages/SettingsPermissions'
 import { PrivacyPolicy } from '../pages/PrivacyPolicy'
 import { Notifications } from '../pages/Notifications'
+import { getEffectiveUnreadCount } from '../utils/conversationReadState'
 import '../layout/Layout.css'
 import '../layout/Sidebar.css'
 import '../layout/TopNavBar.css'
@@ -81,39 +82,19 @@ function readInitialLocation(): SavedLocation {
 }
 
 type ConversationsResponse = {
-  conversations: Array<{ unread?: number }>
-}
-
-type OverviewQuickStats = {
-  quickStats: { liveChatsNow: number }
+  conversations: Array<{ id: string; unread?: number; lastMessageAt?: string | null }>
 }
 
 export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
   const { token } = useAuth()
-  const { setUnreadCount } = useUnreadCount()
+  const { unreadCount, setUnreadCount } = useUnreadCount()
   const initialLocation = readInitialLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarHidden, setSidebarHidden] = useState(false)
   const [activeSection, setActiveSection] = useState<PrimarySection>(initialLocation.section)
   const [activeSubMenu, setActiveSubMenu] = useState<string>(initialLocation.subMenu)
-  const [liveChatsNow, setLiveChatsNow] = useState<number>(0)
   const [showNotificationsPage, setShowNotificationsPage] = useState(false)
-
-  // Fetch live chats count for top nav pill
-  useEffect(() => {
-    if (!token) return
-    let cancelled = false
-    apiRequest<OverviewQuickStats>('/analytics/overview', { token })
-      .then((res) => {
-        if (!cancelled) setLiveChatsNow(res.quickStats?.liveChatsNow ?? 0)
-      })
-      .catch(() => {
-        if (!cancelled) setLiveChatsNow(0)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [token])
+  const [preferredConversationId, setPreferredConversationId] = useState<string | null>(null)
 
   // Fetch unread count for sidebar badge
   useEffect(() => {
@@ -122,7 +103,10 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
     apiRequest<ConversationsResponse>('/conversations', { token })
       .then((res) => {
         if (!cancelled) {
-          const total = (res.conversations || []).reduce((s, c) => s + (c.unread || 0), 0)
+          const total = (res.conversations || []).reduce(
+            (s, c) => s + getEffectiveUnreadCount(c.id, c.unread || 0, c.lastMessageAt || null),
+            0
+          )
           setUnreadCount(total)
         }
       })
@@ -172,8 +156,24 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       return <Dashboard />
     }
     if (activeSection === 'conversations') {
-      if (activeSubMenu === 'all') return <AllChats />
-      if (activeSubMenu === 'unread') return <Unread />
+      if (activeSubMenu === 'all') {
+        return (
+          <AllChats
+            preferredChatId={preferredConversationId}
+            onPreferredChatHandled={() => setPreferredConversationId(null)}
+          />
+        )
+      }
+      if (activeSubMenu === 'unread') {
+        return (
+          <Unread
+            onOpenConversation={(conversationId) => {
+              setPreferredConversationId(conversationId)
+              setActiveSubMenu('all')
+            }}
+          />
+        )
+      }
     }
     if (activeSection === 'chatbot') {
       if (activeSubMenu === 'auto-replies') return <AutoReplies />
@@ -252,7 +252,7 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
           activeSectionLabel={showNotificationsPage ? 'Notifications' : PRIMARY_SECTION_LABELS[activeSection]}
           onSidebarToggle={() => setSidebarHidden((prev) => !prev)}
           isSidebarHidden={sidebarHidden}
-          liveChatsNow={liveChatsNow}
+          liveChatsNow={unreadCount}
           onNotificationsClick={() => setShowNotificationsPage((prev) => !prev)}
         />
         <div className="main-content-scrollable">{renderContent()}</div>
