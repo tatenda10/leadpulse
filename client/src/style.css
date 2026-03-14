@@ -48,6 +48,10 @@ button {
   font-family: inherit;
 }
 
+select {
+  font-family: var(--font-family);
+}
+
 /* Remove default focus outline/border on form fields when pressed */
 input:focus,
 select:focus,

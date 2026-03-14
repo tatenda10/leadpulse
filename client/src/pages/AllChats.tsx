@@ -215,6 +215,12 @@ export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPr
   const [warmThreshold, setWarmThreshold] = useState(40)
   const [hotThreshold, setHotThreshold] = useState(70)
 
+  const scrollToLatestMessage = (behavior: ScrollBehavior = 'auto') => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    container.scrollTo({ top: container.scrollHeight, behavior })
+  }
+
   useEffect(() => {
     setUnreadCount(chats.reduce((sum, chat) => sum + chat.unread, 0))
   }, [chats, setUnreadCount])
@@ -336,13 +342,15 @@ export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPr
         const response = await apiRequest<MessagesResponse>(`/conversations/${conversationId}/messages`, { token })
         if (cancelled) return
 
-        const nextMessages: ChatMessage[] = response.messages.map((message) => ({
-          id: String(message.id),
-          sender: message.sender,
-          text: message.body,
-          createdAt: message.createdAt,
-          time: formatMessageTime(message.createdAt),
-        }))
+        const nextMessages: ChatMessage[] = response.messages
+          .map((message) => ({
+            id: String(message.id),
+            sender: message.sender,
+            text: message.body,
+            createdAt: message.createdAt,
+            time: formatMessageTime(message.createdAt),
+          }))
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
         setMessages(nextMessages)
       } catch (error) {
@@ -403,14 +411,7 @@ export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPr
 
   useLayoutEffect(() => {
     if (!selectedChatId || loadingMessages) return
-
-    const container = messagesContainerRef.current
-    if (!container) return
-
-    const previousScrollBehavior = container.style.scrollBehavior
-    container.style.scrollBehavior = 'auto'
-    container.scrollTop = container.scrollHeight
-    container.style.scrollBehavior = previousScrollBehavior
+    scrollToLatestMessage('auto')
   }, [selectedChatId, messages.length, loadingMessages])
 
   const selectedChat = useMemo(
@@ -522,6 +523,7 @@ export const AllChats: React.FC<AllChatsProps> = ({ preferredChatId = null, onPr
       }
 
       setMessages((prev) => [...prev, newMessage])
+      requestAnimationFrame(() => scrollToLatestMessage('smooth'))
       setMessageInput('')
 
       const nowIso = new Date().toISOString()

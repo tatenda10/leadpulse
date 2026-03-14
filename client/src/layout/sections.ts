@@ -3,6 +3,7 @@ export type PrimarySection =
   | 'conversations'
   | 'chatbot'
   | 'lead-intelligence'
+  | 'crm'
   | 'campaigns'
   | 'contacts'
   | 'analytics'
@@ -13,6 +14,7 @@ export const DEFAULT_SUBMENU: Record<PrimarySection, string> = {
   conversations: 'all',
   chatbot: 'auto-replies',
   'lead-intelligence': 'scoring',
+  crm: 'pipeline',
   campaigns: 'all-campaigns',
   contacts: 'all-contacts',
   analytics: 'conversation-trends',
@@ -24,6 +26,7 @@ export const PRIMARY_SECTION_LABELS: Record<PrimarySection, string> = {
   conversations: 'Conversations',
   chatbot: 'Chatbot Manager',
   'lead-intelligence': 'Lead Intelligence',
+  crm: 'CRM',
   campaigns: 'Campaigns / Ad Sources',
   contacts: 'Contacts',
   analytics: 'Analytics',

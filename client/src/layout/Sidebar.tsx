@@ -67,6 +67,9 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
     { key: 'weights', label: 'Keyword Weights', icon: <HiOutlineKey size={18} /> },
     { key: 'tags', label: 'Tags', icon: <HiOutlineTag size={18} /> },
   ],
+  crm: [
+    { key: 'pipeline', label: 'Pipeline', icon: <HiOutlineOfficeBuilding size={18} /> },
+  ],
   campaigns: [
     { key: 'all-campaigns', label: 'All Campaigns', icon: <HiOutlineSpeakerphone size={18} /> },
     { key: 'facebook', label: 'Facebook Sources', icon: <SiFacebook size={18} /> },

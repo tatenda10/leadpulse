@@ -21,6 +21,7 @@ import { ScoringRules } from '../pages/ScoringRules'
 import { HotLeadThreshold } from '../pages/HotLeadThreshold'
 import { KeywordWeights } from '../pages/KeywordWeights'
 import { LeadTags } from '../pages/LeadTags'
+import { CrmPipeline } from '../pages/CrmPipeline'
 import { AllCampaigns } from '../pages/AllCampaigns'
 import { FacebookSources } from '../pages/FacebookSources'
 import { CampaignPerformance } from '../pages/CampaignPerformance'
@@ -187,6 +188,9 @@ export const Layout: React.FC<LayoutProps> = ({ onLogout }) => {
       if (activeSubMenu === 'threshold') return <HotLeadThreshold />
       if (activeSubMenu === 'weights') return <KeywordWeights />
       if (activeSubMenu === 'tags') return <LeadTags />
+    }
+    if (activeSection === 'crm') {
+      if (activeSubMenu === 'pipeline') return <CrmPipeline />
     }
     if (activeSection === 'campaigns') {
       if (activeSubMenu === 'all-campaigns') return <AllCampaigns />
