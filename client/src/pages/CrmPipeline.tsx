@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { HiOutlineCalendar, HiOutlineSearch, HiOutlineX } from 'react-icons/hi'
+import {
+  HiOutlineCalendar,
+  HiOutlinePhone,
+  HiOutlineAnnotation,
+  HiOutlineVideoCamera,
+  HiOutlineSearch,
+  HiOutlineX,
+} from 'react-icons/hi'
 import { apiRequest } from '../contexts/Api'
 import { useAuth } from '../contexts/AuthContext'
 import './CrmPipeline.css'
@@ -39,6 +46,7 @@ type ConversationsResponse = {
 type CrmStage = 'new' | 'contacted' | 'meeting-set' | 'proposal' | 'won' | 'lost'
 type StageFilter = 'all' | CrmStage
 type SourceFilter = 'all' | string
+type NextActionType = 'none' | 'contact' | 'follow-up' | 'task'
 
 type CrmLead = {
   id: string
@@ -54,6 +62,9 @@ type CrmLeadState = {
   stage: CrmStage
   meetingAt: string | null
   meetingNote: string
+  nextActionType: NextActionType
+  nextActionAt: string | null
+  nextActionNote: string
 }
 
 type CrmStateMap = Record<string, CrmLeadState>
@@ -67,10 +78,20 @@ const STAGE_LABELS: Record<CrmStage, string> = {
   won: 'Won',
   lost: 'Lost',
 }
+const NEXT_ACTION_LABELS: Record<Exclude<NextActionType, 'none'>, string> = {
+  contact: 'Contact this person',
+  'follow-up': 'Follow up',
+  task: 'Task',
+}
 const CRM_STATE_KEY = 'leadpulse_crm_pipeline_state_v1'
 
 function normalizePhone(value: string): string {
   return value.replace(/\D/g, '')
+}
+
+function toDateTimeLocalValue(date: Date): string {
+  const copy = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return copy.toISOString().slice(0, 16)
 }
 
 function readCrmState(): CrmStateMap {
@@ -103,6 +124,13 @@ export const CrmPipeline: React.FC = () => {
   const [meetingAtInput, setMeetingAtInput] = useState('')
   const [meetingNoteInput, setMeetingNoteInput] = useState('')
   const [savingMeeting, setSavingMeeting] = useState(false)
+  const [actionLead, setActionLead] = useState<CrmLead | null>(null)
+  const [actionTypeInput, setActionTypeInput] = useState<Exclude<NextActionType, 'none'>>('contact')
+  const [actionAtInput, setActionAtInput] = useState('')
+  const [actionNoteInput, setActionNoteInput] = useState('')
+  const [savingAction, setSavingAction] = useState(false)
+  const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null)
+  const [movedLeadId, setMovedLeadId] = useState<string | null>(null)
 
   useEffect(() => {
     setCrmState(readCrmState())
@@ -169,12 +197,34 @@ export const CrmPipeline: React.FC = () => {
 
   const getLeadState = (lead: CrmLead): CrmLeadState => {
     const saved = crmState[lead.id]
-    if (saved) return saved
-    return { stage: inferStage(lead.score), meetingAt: null, meetingNote: '' }
+    const defaultState: CrmLeadState = {
+      stage: inferStage(lead.score),
+      meetingAt: null,
+      meetingNote: '',
+      nextActionType: 'none',
+      nextActionAt: null,
+      nextActionNote: '',
+    }
+    if (!saved) return defaultState
+    return {
+      ...defaultState,
+      ...saved,
+    }
   }
 
   const setLeadState = (leadId: string, nextState: CrmLeadState) => {
     setCrmState((prev) => ({ ...prev, [leadId]: nextState }))
+  }
+
+  const moveLeadToStage = (leadId: string, nextStage: CrmStage) => {
+    const lead = leads.find((l) => l.id === leadId)
+    if (!lead) return
+    const state = getLeadState(lead)
+    setLeadState(leadId, { ...state, stage: nextStage })
+    setMovedLeadId(leadId)
+    window.setTimeout(() => {
+      setMovedLeadId((current) => (current === leadId ? null : current))
+    }, 400)
   }
 
   const sourceOptions = useMemo(() => {
@@ -250,6 +300,50 @@ export const CrmPipeline: React.FC = () => {
     }
   }
 
+  const openActionModal = (lead: CrmLead) => {
+    const state = getLeadState(lead)
+    setActionLead(lead)
+    setActionTypeInput(state.nextActionType === 'none' ? 'contact' : state.nextActionType)
+    setActionAtInput(state.nextActionAt || '')
+    setActionNoteInput(state.nextActionNote || '')
+  }
+
+  const clearActionModal = () => {
+    setActionLead(null)
+    setActionTypeInput('contact')
+    setActionAtInput('')
+    setActionNoteInput('')
+  }
+
+  const saveNextAction = async () => {
+    if (!actionLead || !actionAtInput) return
+    setSavingAction(true)
+    try {
+      const state = getLeadState(actionLead)
+      setLeadState(actionLead.id, {
+        ...state,
+        stage: state.stage === 'new' ? 'contacted' : state.stage,
+        nextActionType: actionTypeInput,
+        nextActionAt: actionAtInput,
+        nextActionNote: actionNoteInput.trim(),
+      })
+      clearActionModal()
+    } finally {
+      setSavingAction(false)
+    }
+  }
+
+  const markContactNow = (lead: CrmLead) => {
+    const state = getLeadState(lead)
+    setLeadState(lead.id, {
+      ...state,
+      stage: state.stage === 'new' ? 'contacted' : state.stage,
+      nextActionType: 'contact',
+      nextActionAt: toDateTimeLocalValue(new Date()),
+      nextActionNote: state.nextActionNote,
+    })
+  }
+
   return (
     <div className="crm-page">
       <header className="crm-header">
@@ -310,7 +404,33 @@ export const CrmPipeline: React.FC = () => {
         ) : (
           <div className="crm-board">
             {STAGE_ORDER.map((stage) => (
-              <div key={stage} className={`crm-column crm-stage-${stage}`}>
+              <div
+                key={stage}
+                className={`crm-column crm-stage-${stage}`}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const leadId = e.dataTransfer.getData('text/plain')
+                  if (!leadId) {
+                    setDraggingLeadId(null)
+                    return
+                  }
+                  moveLeadToStage(leadId, stage)
+                  setDraggingLeadId(null)
+                  const lead = leads.find((l) => l.id === leadId)
+                  if (!lead) return
+                  if (stage === 'meeting-set') {
+                    const state = getLeadState(lead)
+                    setMeetingLead(lead)
+                    setMeetingAtInput(state.meetingAt || '')
+                    setMeetingNoteInput(state.meetingNote || '')
+                  } else if (stage === 'contacted') {
+                    openActionModal(lead)
+                  }
+                }}
+              >
                 <div className="crm-column-header">
                   <span>{STAGE_LABELS[stage]}</span>
                   <span className="crm-column-count">{leadsByStage[stage].length}</span>
@@ -322,7 +442,18 @@ export const CrmPipeline: React.FC = () => {
                     leadsByStage[stage].map((lead) => {
                       const state = getLeadState(lead)
                       return (
-                        <article key={lead.id} className={`crm-lead-card crm-stage-${state.stage}`}>
+                        <article
+                          key={lead.id}
+                          className={`crm-lead-card crm-stage-${state.stage} ${
+                            draggingLeadId === lead.id ? 'crm-lead-card-dragging' : ''
+                          } ${movedLeadId === lead.id ? 'crm-lead-card-moved' : ''}`}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', lead.id)
+                            setDraggingLeadId(lead.id)
+                          }}
+                          onDragEnd={() => setDraggingLeadId(null)}
+                        >
                           <div className="crm-lead-name">{lead.name}</div>
                           <span className={`crm-lead-stage-pill crm-stage-${state.stage}`}>{STAGE_LABELS[state.stage]}</span>
                           <div className="crm-lead-meta">{lead.phone}</div>
@@ -335,24 +466,44 @@ export const CrmPipeline: React.FC = () => {
                               {new Date(state.meetingAt).toLocaleString()}
                             </div>
                           )}
+                          {state.nextActionType !== 'none' && state.nextActionAt && (
+                            <div className="crm-lead-next-action">
+                              <span className={`crm-next-action-pill crm-next-action-${state.nextActionType}`}>
+                                {NEXT_ACTION_LABELS[state.nextActionType]}
+                              </span>
+                              <span>{new Date(state.nextActionAt).toLocaleString()}</span>
+                            </div>
+                          )}
+                          {state.nextActionType !== 'none' && state.nextActionNote && (
+                            <div className="crm-lead-next-note">{state.nextActionNote}</div>
+                          )}
                           <div className="crm-lead-actions">
-                            <select
-                              value={state.stage}
-                              onChange={(e) =>
-                                setLeadState(lead.id, {
-                                  ...state,
-                                  stage: e.target.value as CrmStage,
-                                })
-                              }
+                            <button
+                              type="button"
+                              className="crm-btn-icon crm-btn-contact"
+                              onClick={() => markContactNow(lead)}
+                              aria-label="Mark as contacted now"
+                              title="Contact now"
                             >
-                              {STAGE_ORDER.map((option) => (
-                                <option key={option} value={option}>
-                                  {STAGE_LABELS[option]}
-                                </option>
-                              ))}
-                            </select>
-                            <button type="button" onClick={() => openMeetingModal(lead)}>
-                              Set meeting
+                              <HiOutlinePhone size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              className="crm-btn-icon crm-btn-plan"
+                              onClick={() => openActionModal(lead)}
+                              aria-label="Plan next action"
+                              title="Plan action"
+                            >
+                              <HiOutlineAnnotation size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              className="crm-btn-icon crm-btn-meeting"
+                              onClick={() => openMeetingModal(lead)}
+                              aria-label="Set meeting"
+                              title="Set meeting"
+                            >
+                              <HiOutlineVideoCamera size={18} />
                             </button>
                           </div>
                         </article>
@@ -401,6 +552,58 @@ export const CrmPipeline: React.FC = () => {
               </button>
               <button type="button" onClick={() => void saveMeeting()} disabled={!meetingAtInput || savingMeeting}>
                 {savingMeeting ? 'Saving...' : 'Save meeting'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {actionLead && (
+        <>
+          <div className="crm-modal-overlay" onClick={clearActionModal} aria-hidden="true" />
+          <div className="crm-modal" role="dialog" aria-modal="true" aria-labelledby="crm-action-title">
+            <div className="crm-modal-header">
+              <h2 id="crm-action-title">Plan next action — {actionLead.name}</h2>
+              <button type="button" onClick={clearActionModal} aria-label="Close">
+                <HiOutlineX size={18} />
+              </button>
+            </div>
+            <div className="crm-modal-body">
+              <label>
+                Action type
+                <select
+                  value={actionTypeInput}
+                  onChange={(e) => setActionTypeInput(e.target.value as Exclude<NextActionType, 'none'>)}
+                >
+                  <option value="contact">Contact this person</option>
+                  <option value="follow-up">Follow up</option>
+                  <option value="task">Task</option>
+                </select>
+              </label>
+              <label>
+                Due date and time
+                <input
+                  type="datetime-local"
+                  value={actionAtInput}
+                  onChange={(e) => setActionAtInput(e.target.value)}
+                />
+              </label>
+              <label>
+                Notes
+                <textarea
+                  rows={3}
+                  value={actionNoteInput}
+                  onChange={(e) => setActionNoteInput(e.target.value)}
+                  placeholder="What should happen on this follow-up?"
+                />
+              </label>
+            </div>
+            <div className="crm-modal-footer">
+              <button type="button" className="secondary" onClick={clearActionModal}>
+                Cancel
+              </button>
+              <button type="button" onClick={() => void saveNextAction()} disabled={!actionAtInput || savingAction}>
+                {savingAction ? 'Saving...' : 'Save action'}
               </button>
             </div>
           </div>

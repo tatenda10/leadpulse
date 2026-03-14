@@ -69,6 +69,7 @@ const SIDEBAR_MENUS: Record<PrimarySection, MenuItem[]> = {
   ],
   crm: [
     { key: 'pipeline', label: 'Pipeline', icon: <HiOutlineOfficeBuilding size={18} /> },
+    { key: 'actions', label: 'Actions', icon: <HiOutlineClock size={18} /> },
   ],
   campaigns: [
     { key: 'all-campaigns', label: 'All Campaigns', icon: <HiOutlineSpeakerphone size={18} /> },
